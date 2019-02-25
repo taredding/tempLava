@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Prog 5: Snake </title>
+    
+    <link type="text/css" rel="stylesheet" href="rasterize.css">
+  </head>
+
+  <body onload="main();">
+    <div class="row">
+      <div class="column">
+        <canvas id="myWebGLCanvas" width="800" height="800"></canvas>
+      </div>
+      <div class="column" id="scoreboard">
+        <div class="score">Player 1 Score: <label id="p1Score">0</label> <br/>Player 2 Score: <label id="p2Score">0</label></div>
+        <br/>CONTROLS: <br />
+        Player 1 Move: Arrow Keys <br/>
+        Player 2 Move: TFGH <br/>
+        Start 1 Player Match: Esc <br/>
+        Start 2 Player Match: R <br />
+        Toggle Audio: M <br />
+        Toggle Camera: C <br /> <br />
+        Game Speed: <input type="range" id="speed" min="1" max="9" value="6"> <input type="button" value="Reset Game" onclick="setUpBoard()"/> <br />
+        Raw FPS: <label id="fps">---</label> <br />
+        Smooth FPS: <label id="fpsSmooth">---</label> <br />
+        Avg Time Updating Game: <label id="gameLogicTime">---</label> <br />
+        Avg Time Updating Graphics: <label id="renderTime">---</label> <br />
+      </div>
+    </div>
+  </body>
+    <script type="text/javascript" src="gl-matrix-min.js"></script>
+    <script type="text/javascript" src="rasterize.js"></script>
+</div>
+</html>

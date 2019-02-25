@@ -1,0 +1,113 @@
+[
+  {
+    "name": "background",
+    "material": {"ambient": [0.1,0.1,0.1], "diffuse": [0.6,0.4,0.4], "specular": [0.3,0.3,0.3], "n": 11, "alpha": 1.0, "texture": "brick.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "gameover",
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.0, "texture": "GameOver.png"},
+    "model": "box.obj"
+  },
+  {
+    "name": "p1Win",
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.0, "texture": "p1win.png"},
+    "model": "box.obj"
+  },
+  {
+    "name": "p2Win",
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.0, "texture": "p2win.png"},
+    "model": "box.obj"
+  },
+  {
+    "name": "wall",
+    "material": {"ambient": [0.7,0.7,0.7], "diffuse": [0.6,0.6,0.6], "specular": [0.5,0.5,0.5], "n": 11, "alpha": 1.0, "texture": "wall.png"},
+    "model": "box.obj"
+  },
+  {
+    "name": "snake",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snake.jpg"},
+    "model": "box.obj"
+  }
+  {
+    "name": "snakehead",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snakehead.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "snakehead2",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snakehead2.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "snakehead3",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snakehead3.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "snaketail",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snake.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "snaketail2",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snake2.jpg"},
+    "model": "box.obj"
+  },
+    {
+    "name": "snaketail3",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snake3.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "snake2",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snake2.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "enemy",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "scales2.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "apple",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "apple.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "scoremult",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "jelly.jpg"},
+    "model": "box.obj"
+  }
+  ,
+  {
+    "name": "clock",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "clock.png"},
+    "model": "box.obj"
+  },
+  {
+    "name": "appleshadow",
+    "material": {"ambient": [0,0,0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.2, "texture": "apple.jpg"},
+    "model": "box.obj"
+  },
+  {
+    "name": "blueshadow",
+    "material": {"ambient": [0,0,0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.2, "texture": "jelly.jpg"},
+    "model": "box.obj"
+  },
+    {
+    "name": "exp1",
+    "material": {"ambient": [0,0,0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.2, "texture": "exp1.jpg"},
+    "model": "box.obj"
+  },
+    {
+    "name": "exp2",
+    "material": {"ambient": [0,0,0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.2, "texture": "exp2.jpg"},
+    "model": "box.obj"
+  },
+    {
+    "name": "exp3",
+    "material": {"ambient": [0,0,0], "diffuse": [0,0,0], "specular": [0,0,0], "n": 0, "alpha": 0.2, "texture": "exp3.jpg"},
+    "model": "box.obj"
+  }
+]
