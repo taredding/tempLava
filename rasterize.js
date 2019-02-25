@@ -9,8 +9,8 @@ var BASE_URL = "http://127.0.0.1/CG_PROG_5/";
 //INPUT_TRIANGLES_URL = "https://taredding.github.io/Snake3D/models.json"; // triangles file loc
 //BASE_URL = "https://taredding.github.io/Snake3D/";
 
-var defaultEye = vec3.fromValues(0.5,0.5,-0.5); // default eye position in world space
-var defaultCenter = vec3.fromValues(0.5,0.5,0.5); // default view direction in world space
+var defaultEye = vec3.fromValues(0.5,0.5,0.5); // default eye position in world space
+var defaultCenter = vec3.fromValues(0.5,0.5,-0.5); // default view direction in world space
 var defaultUp = vec3.fromValues(0,1,0); // default view up vector
 var lightAmbient = vec3.fromValues(0.75,0.75,0.75); // default light ambient emission
 var lightDiffuse = vec3.fromValues(0.5,0.5,0.5); // default light diffuse emission
@@ -55,67 +55,19 @@ var texToggle = false;
 var alphaUniform;
 
 var modelInstances = [];
-var grid;
 
-var snakeHead;
-var player2;
-var enemyHead;
-var apple;
-var gameover;
-var p2Win;
-var p1Win;
-var isGameOver = false;
+var player;
 
 var now,delta,then = Date.now();
 var interval = 1000/30;
 var counter = 0;
 
-var is2Player = false;
 
-var audio_eat = new Audio('audio/bite.wav');
-audio_eat.muted = true;
-
-var audio_bump = new Audio('audio/die.wav');
-audio_bump.volume = 0.5;
-audio_bump.muted = true;
-
-var music = new Audio('audio/music.mp3');
-music.volume = 0.1;
-music.loop = true;
-music.muted = true;
-
-var audio_clock = new Audio('audio/clock.wav');
-audio_clock.muted = true;
-
-audio_pup = new Audio('audio/powerup.wav');
-audio_pup.muted = true;
-
-audio_pdown = new Audio('audio/powerdown.wav');
-audio_pdown.muted = true;
-
-audio_explode = new Audio('audio/explode.wav');
-audio_explode.muted = true;
-
-const TIME_PER_UPDATE = Math.floor(1000.0 / 60);
-
-
-var p1Score = 0;
-var p2Score = 0;
-
-var score1Multiplier = 1;
-var score2Multiplier = 1;
-var scoremult;
-
-var dynamicCamera = false;
 
 var timers = [];
 
 var lightPositionULoc;
 
-const DEF_MOVE_FRAME = 4;
-var MOVE_FRAME = DEF_MOVE_FRAME;
-var SLITHER_RESET_FRAME = 10;
-var gameSpeed = 1.0;
 var speedSlider = document.getElementById("speed");
 var fpsIndicator = document.getElementById("fps");
 var fpsIndicatorSmooth = document.getElementById("fpsSmooth");
@@ -123,13 +75,10 @@ var fpsIndicatorSmooth = document.getElementById("fpsSmooth");
 var gameUpdateIndicator = document.getElementById("gameLogicTime");
 var renderUpdateIndicator = document.getElementById("renderTime");
 
-var isP1Win;
-var isP2Win;
-
-    // set up needed view params
-    var lookAt = vec3.create(), viewRight = vec3.create(), temp = vec3.create(); // lookat, right & temp vectors
-    lookAt = vec3.normalize(lookAt,vec3.subtract(temp,Center,Eye)); // get lookat vector
-    viewRight = vec3.normalize(viewRight,vec3.cross(temp,lookAt,Up)); // get view right vector
+// set up needed view params
+var lookAt = vec3.create(), viewRight = vec3.create(), temp = vec3.create(); // lookat, right & temp vectors
+lookAt = vec3.normalize(lookAt,vec3.subtract(temp,Center,Eye)); // get lookat vector
+viewRight = vec3.normalize(viewRight,vec3.cross(temp,lookAt,Up)); // get view right vector
 
 // ASSIGNMENT HELPER FUNCTIONS
 
@@ -506,14 +455,9 @@ function loadModel(model) {
         console.log(e);
     } // end catch
 } // end load models
-function createModelInstance(name, i, j) {
-  var loc = vec3.create();
-  if (i == undefined || j == undefined) {
-    loc = vec3.fromValues(0.0, 0.0, 0.0);
-  }
-  else {
-    gridToCoord(loc, i, j);
-  }
+
+function createModelInstance(name, x, y, z) {
+  var loc = vec3.fromValues(x, y, z);
   var oldSet = getModelByName(name);
   var set = Object.assign({}, oldSet);
   var nextLen = modelInstances.length;
@@ -543,6 +487,7 @@ function rotateY (model, amount) {
   vec3.transformMat4(model.yAxis, model.yAxis, rotato);
   vec3.transformMat4(model.xAxis,model.xAxis, rotato);
 }
+
 // get the file from the passed URL
 function getFile(url,descr) {
     try {
@@ -571,804 +516,25 @@ function getFile(url,descr) {
 } // end get input json file
 
 
-function setUpBoard() {
-  score1Multiplier = 1;
-  score2Multiplier = 1;
-  slowDown = false;
-  isP1Win = false;
-  isP2Win = false;
-
-  MOVE_FRAME = 15;
-  SLITHER_RESET_FRAME = 13;
-  gameSpeed = DEF_MOVE_FRAME / MOVE_FRAME;
-  expP1Seg = null;
-  expP2Seg = null;
-  for (var i = 0; i < timers.length; i++) {
-    clearTimeout(timers[i]);
+function Ship(x, y, z) {
+  this.x = x;
+  this.y = y;
+  this.z = z;
+  this.speed = 0.1;
+  
+  this.model = createModelInstance("snakehead", this.x, this.y, this.z);
+  this.update = function(time) {
+    var elapsedSeconds = time / 1000;
+    this.y += elapsedSeconds * this.speed;
+    vec3.set(this.model.translation, this.x, this.y, this.z);
   }
-  isGameOver = false;
-  player2 = null;
-  enemyHead = null;
+  
+}
+
+
+function setupGame() {
   modelInstances = [];
-  p1Score = 0;
-  p2Score = 0;
-  updateScore();
-  // Load Background
-  var temp = createModelInstance("background");
-  vec3.set(temp.translation, 0.5, 0.5, 0.1);
-  scaleUniform(temp, 1.0 / 0.025);
-  
-  gameover = createModelInstance("gameover");
-  p1Win = createModelInstance("p1Win");
-  p2Win = createModelInstance("p2Win");
-  gameover.translation = vec3.fromValues(0.25, 0.4, 0.0);
-  gameover.material.alpha = 0.0;
-  p1Win.translation = vec3.fromValues(0.25, 0.4, 0.0);
-  p1Win.material.alpha = 0.0;
-  p2Win.translation = vec3.fromValues(0.25, 0.4, 0.0);
-  p2Win.material.alpha = 0.0;
-  grid = [];
-  for (var i = 0; i < GRID_WIDTH; i++) {
-    grid.push([]);
-    for (var j = 0; j < GRID_HEIGHT; j++) {
-      var wall = null;
-      if (i == 0 || j == 0 || i == GRID_WIDTH - 1 || j == GRID_WIDTH - 1) {
-        wall = "wall";
-        var next = createModelInstance("wall", i, j);
-        
-        var ambFlex = -0.6 + (Math.random());
-        next.material.ambient[0] += ambFlex / 2.0;
-        next.material.ambient[1] += ambFlex / 2.0;
-        next.material.ambient[2] += ambFlex / 2.0;
-        next.material.diffuse[0] += ambFlex;
-        next.material.diffuse[1] += ambFlex;
-        next.material.diffuse[2] += ambFlex;
-        next.material.specular[0] += ambFlex;
-        next.material.specular[1] += ambFlex;
-        next.material.specular[2] += ambFlex;
-        var rand = Math.random()/15.0;
-        next.translation[2] += rand;
-        if (i == 0 || i == GRID_WIDTH - 1) {
-          rotateY(next, Math.PI / 2);
-        }
-      }
-      grid[i].push(wall);
-    }
-  }
-  createModelInstance("wall", 5, 5);
-  grid[5][5] = "wall";
-  var temp = createModelInstance("wall", 5, 5);
-  temp.translation[2] -= 0.025;
-  temp.translation[1] -= 0.03;
-  temp.translation[0] -= 0.03;
-  var rotato = mat4.create();
-  mat4.fromRotation(rotato, (Math.PI/4), vec3.fromValues(0, 0, 1));
-  vec3.transformMat4(temp.yAxis, temp.yAxis, rotato);
-  vec3.transformMat4(temp.xAxis, temp.xAxis, rotato);
-  mat4.fromRotation(rotato, (Math.PI/2), vec3.fromValues(1, 0, 0));
-  vec3.transformMat4(temp.yAxis, temp.yAxis, rotato);
-  vec3.transformMat4(temp.xAxis, temp.xAxis, rotato);
-  temp = createModelInstance("wall", 14, 14);
-  temp = createModelInstance("wall", 14, 14);
-  grid[14][14] = "wall";
-  temp.translation[2] -= 0.1;
-  
-  temp = createModelInstance("wall", 8, 10);
-  grid[8][10] = "wall";
-  
-  temp = createModelInstance("wall", 8, 12);
-  grid[8][12] = "wall";
-  
-  temp = createModelInstance("wall", 8, 11);
-  mat4.fromRotation(rotato, (Math.PI/2), vec3.fromValues(0, 1, 0));
-  vec3.transformMat4(temp.yAxis, temp.yAxis, rotato);
-  vec3.transformMat4(temp.xAxis, temp.xAxis, rotato);
-  
-  mat4.fromRotation(rotato, (Math.PI/7), vec3.fromValues(1, 0, 0));
-  vec3.transformMat4(temp.yAxis, temp.yAxis, rotato);
-  vec3.transformMat4(temp.xAxis, temp.xAxis, rotato);
-  temp.translation[2] -= 0.025;
-  temp.translation[1] -= 0.006;
-  temp.translation[0] += 0.04;
-  
-  temp = createModelInstance("wall", 15, 3);
-  grid[15][3] = "wall";
-  
-  temp = createModelInstance("wall", 14, 2);
-  grid[14][2] = "wall";
-  
-  
-  if (is2Player) {
-    dynamicCamera = false;
-    Eye = vec3.clone(defaultEye);
-    Center = vec3.clone(defaultCenter);
-    player2 = new Segment(4, 13, true, true, true);
-    player2.isHead = true;
-    player2.addChild();
-    player2.addChild();
-    player2.addChild();
-    player2.model.material.ambient = [0.6,0.6,0.6];
-  }
-  else {
-    dynamicCamera = true;
-    enemyHead = new Segment(4, 12, false, false, true);
-    enemyHead.isHead = true;
-    enemyHead.addChild();
-    enemyHead.addChild();
-    enemyHead.addChild();
-  }
-  snakeHead = new Segment(4, 3, true, false, true);
-  snakeHead.isHead = true;
-  snakeHead.addChild();
-  snakeHead.addChild();
-  snakeHead.addChild();
-  snakeHead.model.material.ambient = [0.6,0.6,0.6];
-  
-  //spawnEnemy();
-  apple = new Apple();
-  
-  scoremult = new PowerUp("scoremult", 0, 20000);
-  scoremult.model.material.alpha = 1.0;
-  clock = new PowerUp("clock", 1, 10000);
-  clock.model.material.alpha = 1.0;
-  
-}
-
-function Apple() {
-  this.model = createModelInstance("apple", 18, 18);
-  this.shadow = createModelInstance("appleshadow", 18, 18);
-  vec3.set(this.model.yAxis, 0, 1, 0);
-  vec3.set(this.model.xAxis, 1, 0, 0);
-  var rotato = mat4.create();
-  mat4.fromScaling(rotato, vec3.fromValues(0.5, 0.5, 0.5));
-  vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-  vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-  rotato = mat4.create();
-  mat4.fromRotation(rotato, (Math.PI/4), vec3.fromValues(0, 0, 1));
-  vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-  vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-  rotato = mat4.create();
-  mat4.fromRotation(rotato, (Math.PI/4), vec3.fromValues(0, 1, 0));
-  vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-  vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-  
-  this.move = function() {
-    do {
-      this.j = getRandGridLoc();
-      this.i = getRandGridLoc();
-    } while (grid[this.i][this.j] != null);
-    grid[this.i][this.j] = "apple";
-    gridToCoord(this.model.translation, this.i, this.j);
-    gridToCoord(this.shadow.translation, this.i, this.j);
-  }
-  this.frameNum = Math.floor(Math.random() * 60);
-  this.update = function() {
-    
-    var rotato = mat4.create();
-    mat4.fromRotation(rotato, (Math.PI) * 0.01, vec3.fromValues(0, 0, 1));
-    vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-    vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-    this.frameNum++;
-    this.model.translation[2] = -0.05 + (Math.sin(0.15 * this.frameNum) / 60);
-    var scal = this.model.translation[2];
-    rotato = mat4.create();
-    vec3.set(this.shadow.yAxis, 0, 1, 0);
-    vec3.set(this.shadow.xAxis, 1, 0, 0);
-    mat4.fromScaling(rotato, vec3.fromValues(1.0/(scal * 25), 1.0/(scal * 25), 1.0));
-    vec3.transformMat4(this.shadow.yAxis, this.shadow.yAxis, rotato);
-    vec3.transformMat4(this.shadow.xAxis, this.shadow.xAxis, rotato);
-  }
-  this.move();
-}
-
-
-function PowerUp(type, num, interval) {
-  this.model = createModelInstance(type, 17, 17);
-  this.shadow = createModelInstance("blueshadow", 17, 17);
-  this.interval = interval;
-  this.num = num;
-  this.type = type;
-  vec3.set(this.model.yAxis, 0, 1, 0);
-  vec3.set(this.model.xAxis, 1, 0, 0);
-  var rotato = mat4.create();
-  mat4.fromScaling(rotato, vec3.fromValues(0.5, 0.5, 0.5));
-  vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-  vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-  rotato = mat4.create();
-  mat4.fromRotation(rotato, (Math.PI/4), vec3.fromValues(0, 0, 1));
-  vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-  vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-  rotato = mat4.create();
-  mat4.fromRotation(rotato, (Math.PI/4), vec3.fromValues(0, 1, 0));
-  vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-  vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-  
-  this.move = function() {
-    do {
-      this.j = getRandGridLoc();
-      this.i = getRandGridLoc();
-    } while (grid[this.i][this.j] != null);
-    grid[this.i][this.j] = this.type;
-    gridToCoord(this.model.translation, this.i, this.j);
-    gridToCoord(this.shadow.translation, this.i, this.j);
-  }
-  
-  this.consumeMult = function() {
-    audio_pup.currentTime = 0;
-    audio_pup.play();
-    this.model.material.alpha = 0;
-    this.shadow.material.alpha = 0;
-    timers.push(setTimeout(function(){reappear(0);}, this.interval));
-  }
-  this.consumeClock = function() {
-    this.model.material.alpha = 0;
-    this.shadow.material.alpha = 0;
-    timers.push(setTimeout(function(){reappear(1)}, this.interval));
-  }
-  
-  function reappear(thing) {
-    if (thing == 0) {
-      scoremult.model.material.alpha = 1.0;
-      scoremult.shadow.material.alpha = 0.2;
-      scoremult.move();
-      console.log("mult on the move");
-    }
-    else if (thing==1){
-      clock.model.material.alpha = 1.0;
-      clock.shadow.material.alpha = 0.2;
-      clock.move();
-    }
-    
-  }
-  
-  this.frameNum = Math.floor(Math.random() * 60);
-  this.update = function() {
-    var rotato = mat4.create();
-    mat4.fromRotation(rotato, (Math.PI) * 0.01, vec3.fromValues(0, 0, 1));
-    vec3.transformMat4(this.model.yAxis, this.model.yAxis, rotato);
-    vec3.transformMat4(this.model.xAxis, this.model.xAxis, rotato);
-    this.frameNum++;
-    this.model.translation[2] = -0.05 + (Math.sin(0.1 * this.frameNum) / 60);
-    var scal = this.model.translation[2];
-    rotato = mat4.create();
-    vec3.set(this.shadow.yAxis, 0, 1, 0);
-    vec3.set(this.shadow.xAxis, 1, 0, 0);
-    mat4.fromScaling(rotato, vec3.fromValues(1.0/(scal * 25), 1.0/(scal * 25), 1.0));
-    vec3.transformMat4(this.shadow.yAxis, this.shadow.yAxis, rotato);
-    vec3.transformMat4(this.shadow.xAxis, this.shadow.xAxis, rotato);
-  }
-  this.move();
-}
-
-
-
-function getRandGridLoc() {
-  return 1 + Math.floor(Math.random() * (GRID_HEIGHT - 2));
-}
-
-function Segment(i, j, isP, isP2, isHead, avoidSpawn) {
-  this.childNum = 0;
-  const UP = 0;
-  const RIGHT = 3;
-  const DOWN = 2;
-  const LEFT = 1;
-  this.isExploding = false;
-  var DELTA = 1.0 / MOVE_FRAME;
-  this.isAlive = true;
-  this.j = j;
-  this.i = i;
-  this.isHead = false;
-  this.slitherFrame = 0;
-  if (isHead) {
-    this.isHead = true;
-  }
-  this.isP2 = isP2;
-  
-  this.isPlayer = isP;
-  
-  this.iDir = 0;
-  this.jDir = 0;
-  
-  this.nextDir = 1;
-  this.curDir = 1;
-  
-  this.canBuffer = true;
-  console.log("spawning " + i + " " + j);
-  grid[i][j] = "snake";
-
-  if (isP) {
-    if (isP2) {
-      if (this.isHead) {
-        this.model = createModelInstance("snakehead2", i, j);
-      }
-      else {
-        this.model = createModelInstance("snake2", i, j);
-      }
-    }
-    else {
-      if (this.isHead) {
-        this.model = createModelInstance("snakehead", i, j);
-      }
-      else {
-        this.model = createModelInstance("snake", i, j);
-      }
-    }
-  }
-  else {
-    if (this.isHead) {
-      this.model = createModelInstance("snakehead3", i, j);
-    }
-    else {
-      this.model = createModelInstance("snake3", i, j);
-    }
-  }
-  this.model.translation[2] = 0.07;
-  this.model.isP = isP;
-  this.child = null;
-  this.explosionFactor = 1.0;
-  this.frameNum = 0;
-  this.bufferActionForce = function(dir) {
-    this.nextDir = dir;
-    if (dir == UP) {
-      this.iDir = 1;
-      this.jDir = 0;
-    }
-    else if (dir == RIGHT) {
-      this.iDir = 0;
-      this.jDir = -1;
-    }
-    else if (dir == DOWN) {
-      this.iDir = -1;
-      this.jDir = 0;
-    }
-    else if (dir == LEFT) {
-      this.iDir = 0;
-      this.jDir = 1;
-    }
-    else {
-      console.log("Incorrect direction buffer attempt: " + dir);
-    }
-    this.canBuffer = false;
-    if (this.model) {
-      //vec3.set(this.model.yAxis, 0, 1, 0);
-      //vec3.set(this.model.xAxis, 1, 0, 0);
-      rotateY(this.model, (Math.PI/2)*(this.nextDir - this.curDir));
-      
-    }
-  }
-  this.bufferAction = function(dir) {
-    if (!this.canBuffer || this.curDir == dir && this.isAlive) {return;}
-    this.bufferActionForce(dir);
-  }
-  this.bufferHeadAction = function(dir) {
-    if (Math.abs(dir - this.curDir) == 2) {return;}
-    this.bufferAction(dir);
-  }
-  this.update = function() {
-    this.frameNum++;
-    if (this.isExploding) {
-      this.model.realTextureNumber = textures.length - 1 - (Math.floor(gameSpeed *this.frameNum) % 3);
-      if (this.model.material.alpha > 0) {
-        var prevScaling = 1.0/this.explosionFactor;
-        this.explosionFactor += 0.1;
-        var nextScaling = prevScaling * this.explosionFactor;
-        scaleUniform(this.model, nextScaling);
-      }
-      if (this.child) {
-        this.child.update();
-      }
-    }
-    if (!this.isAlive) { return;}
-    //console.log(this.frameNum);
-    gridToCoord(this.model.translation, this.i + (this.iDir * this.frameNum * DELTA), this.j + (this.jDir * this.frameNum * DELTA));
-    /**if (this.isHead) {
-      var translate = this.model.translation;
-      vec3.set(translate, translate[0] - this.jDir * 0.005, translate[1] - this.iDir * 0.002, translate[2]);
-    }*/
-    if (!this.isHead) {
-      var translate = this.model.translation;
-      var slither = vec3.create();
-      
-      var slitherAmount = Math.sin((this.slitherFrame + this.childNum * 6) / (2*Math.PI)) * this.frameNum / 100;
-      gridToCoord(slither,  this.jDir * slitherAmount, this.iDir * slitherAmount);
-      translate[0] += slither[0];
-      translate[1] += slither[1];
-      this.slitherFrame++;
-    }
-    if (this.frameNum >= MOVE_FRAME) {
-      this.frameNum = 0;
-      this.changeLoc();
-      if (this.isHead && !this.isPlayer) {
-        var roll = Math.floor(Math.random()*4);
-        // avoid walls
-        var next = this.curDir;
-        if (roll == 0) {
-          roll = Math.floor(Math.random()*4)
-          if (this.curDir == UP || this.curDir == DOWN) {
-            if (roll < 2) {
-              next = LEFT;
-            }
-            else {
-              next = RIGHT;
-            }
-          }
-          else {
-            if (roll < 2) {
-              next = UP;
-            }
-            else {
-              next = DOWN;
-            }
-          }
-        }
-        next = this.dirAvoidWall(next);
-        this.bufferHeadAction(next);
-      }
-      //this.model.translation = gridToCoord(this.i + (this.iDir * this.frameNum * DELTA), this.j + (this.jDir * this.frameNum * DELTA));
-    }
-    if (this.child) {
-      this.child.update();
-      if (this.isAlive) {
-        this.child.bufferAction(this.curDir);
-      }
-    }
-    vec3.set(this.model.yAxis, 0, 1, 0);
-    vec3.set(this.model.xAxis, 1, 0, 0);
-    rotateY(this.model, (Math.PI/2)*(this.nextDir));
-  }
-  this.dirAvoidWall = function(dir) {
-    var above = this.dangerAbove();
-    var below = this.dangerBelow();
-    var left = this.dangerLeft();
-    var right = this.dangerRight();
-    if (dir == UP && above) {
-      if (left) {
-        if (right) {
-          return DOWN;
-        }
-        return RIGHT;
-      }
-      return LEFT;
-    }
-    else if (dir == DOWN && below) {
-      if (right) {
-        if (left) {
-          return DOWN;
-        }
-        return LEFT;
-      }
-      return RIGHT;
-    }
-    else if (dir == LEFT && left) {
-      if (above) {
-        if (below) {
-          return RIGHT;
-        }
-        return DOWN;
-      }
-      return UP;
-    }
-    else if (dir == RIGHT && right) {
-      if (below) {
-        if (above) {
-          return LEFT;
-        }
-        return UP;
-      }
-      return DOWN;
-    }
-    return dir;
-    
-  }
-  
-  this.dangerAhead = function(iDif, jDif) {
-    var i = this.i + iDif;
-    var j = this.j + jDif;
-    if (i <= 0) {
-      return true;
-    }
-    
-    var thing = grid[i][j];
-    if (thing === "wall" || thing === "snake") {
-        return true;
-    }
-    return false;
-  }
-  this.dangerAbove = function() {return this.dangerAhead(1, 0);};
-  this.dangerBelow = function() {return this.dangerAhead(-1, 0);};
-  this.dangerLeft = function() {return this.dangerAhead(0, 1);};
-  this.dangerRight = function() {return this.dangerAhead(0, -1);};
-  
-  this.deleteSnake= function() {
-    //this.deleteSegments();
-    for (var i = 0; i < modelInstances.length; i++) {
-      if(modelInstances[i].name === "snake3" || modelInstances[i].name === "snakehead3" || modelInstances[i].name === "snaketail3") {
-        modelInstances.splice(i, 1);
-        i--;
-      }
-    }
-    //spawnEnemy();
-  }
-  this.deleteSegments = function() {
-    this.model = null;
-    if(this.child) {
-      this.child.deleteSegments();
-    }
-    this.child = null;
-    grid[this.i][this.j] = null;
-  }
-
-    
-  this.changeLoc = function() {
-    DELTA = 1.0 / MOVE_FRAME;
-    var thing = grid[this.i + this.iDir][this.j + this.jDir];
-    if (thing === "apple") {
-      if(this.isPlayer) {
-        if (this.isP2) {
-          p2Score+= 1 * score2Multiplier;
-          updateScore();
-        }
-        else {
-          p1Score+= 1 * score2Multiplier;
-          updateScore();
-        }
-      }
-      audio_eat.currentTime = 0;
-      audio_eat.play();
-      apple.move();
-      grid[this.i + this.iDir][this.j + this.jDir] = null;
-      this.addChild();
-      
-      console.log("apple");
-    }
-    
-    if (thing === "scoremult") {
-      scoremult.consumeMult();
-      if(this.isPlayer) {
-        if (this.isP2) {
-          player2.model.material.ambient = [1.0,0.0,0.0];
-          score2Multiplier = 2;
-          timers.push(setTimeout(function() {
-            score2Multiplier = 1;
-            audio_pdown.currentTime = 0;
-            audio_pdown.play();
-            player2.model.material.ambient = [0.6,0.6,0.6];
-          }, 10000));
-        }
-        else {
-          score2Multiplier = 2;
-          snakeHead.model.material.ambient = [1.0,0.1,0.1];
-          timers.push(setTimeout(function() {
-            score1Multiplier = 1;
-            audio_pdown.currentTime = 0;
-            audio_pdown.play();
-            snakeHead.model.material.ambient = [0.6,0.6,0.6];
-          }, 10000));
-        }
-      }
-      audio_eat.currentTime = 0;
-      audio_eat.play();
-      grid[this.i + this.iDir][this.j + this.jDir] = null;
-      console.log("scoremultiplier");
-    }
-    
-    if (thing === "clock") {
-      clock.consumeClock();
-      slowDown = true;
-      timers.push(setTimeout(function() {
-        slowDown = false;
-      }, 4000));
-      audio_clock.currentTime = 0;
-      audio_clock.play();
-      grid[this.i + this.iDir][this.j + this.jDir] = null;
-      console.log("clock");
-    }
-    
-    if (this.isHead) {
-      if (thing === "wall" || thing === "snake") {
-        console.log("Hit " + thing + " " + this.i + " " + this.j);
-        audio_bump.currentTime = 0;
-        audio_bump.play();
-        this.isAlive = false;
-        var child = this.child;
-        
-        while (child) {
-          child.isAlive = false;
-          child = child.child;
-        }
-        if (this.isPlayer) {
-          if (this.isP2) {
-            explodeP2();
-            
-          }
-          else {
-            explodeP1();
-          }
-          if (!isGameOver) {
-            isGameOver = true;
-            dynamicCamera = false;
-            Eye = vec3.clone(defaultEye);
-            Center = vec3.clone(defaultCenter);
-            if (this.isPlayer) {
-              if (this.isP2) {
-                isP2Win = false;
-                isP1Win = true;
-              }
-              else {
-                isP1Win = false;
-                isP2Win = true;
-              }
-            }
-          }
-        }
-        else {
-          explodeEnemy();
-        }
-        return;
-      }
-    }
-    this.canBuffer = true;
-    this.curDir = this.nextDir;
-    if (this.isHead || this.child == null) {
-      grid[this.i][this.j] = null;
-    }
-    this.i = this.i + this.iDir;
-    this.j = this.j + this.jDir;
-    grid[this.i][this.j] = "snake";
-   
-    
-    //console.log("SnakePos: " + this.i + " " + this.j);
-    //this.model.translation = gridToCoord(this.i, this.j);
-
-  };
-  
-  this.bufferUp = function() {this.bufferAction(UP)};
-  this.bufferRight = function() {this.bufferAction(RIGHT)};
-  this.bufferDown = function() {this.bufferAction(DOWN)};
-  this.bufferLeft = function() {this.bufferAction(LEFT)};
-  this.bufferAction(UP);
-  
-  this.addChild = function() {
-    if (this.child) {
-      this.child.addChild();
-    }
-    else {
-      this.child = new Segment(this.i - 1, this.j, this.isPlayer, this.isP2, false);
-      //rotateY(this.child.model, (Math.PI/2)*(this.curDir));
-      this.child.childNum = this.childNum + 1;
-      var childModel = this.child.model;
-      if (this.isHead) {
-        this.child.model.material.alpha = 0.0;
-        var modelName = "snaketail";
-        
-        if(this.isP2) {
-          modelName = "snaketail2";
-        }
-        else if (!this.isPlayer) {
-          modelName = "snaketail3";
-        }
-        
-        this.child.model = createModelInstance(modelName, this.child.i, this.child.j);
-        this.child.model.translation[2] = 0.07;
-      }
-      else {
-        var temp = this.child.model;
-        this.child.model = this.model;
-        this.model = temp;
-        gridToCoord(this.child.model.translation, this.child.i + (this.child.iDir * this.child.frameNum * DELTA), this.child.j + (this.child.jDir * this.child.frameNum * DELTA));
-        
-      }
-      this.child.frameNum = this.frameNum;
-    }
-  }
-}
-
-var expP1Seg = null;
-function explodeP1() {
-  if (expP1Seg == null) {
-    expP1Seg = snakeHead;
-  }
-  else {
-    expP1Seg.model.material.alpha = 0.0;
-    grid[expP1Seg.i][expP1Seg.j] = null;
-    expP1Seg = expP1Seg.child;
-  }
-  if (expP1Seg != null) {
-    audio_explode.currentTime = 0;
-    audio_explode.play();
-    expP1Seg.model.material.ambient = [1.0, 1.0, 1.0];
-    expP1Seg.model.material.diffuse = [1.0, 1.0, 1.0];
-    expP1Seg.model.material.specular = [1.0, 1.0, 1.0];
-    expP1Seg.isExploding = true;
-    timers.push(setTimeout(explodeP1, 300 ));
-  }
-  else {
-    if (player2 == null) {
-      gameover.material.alpha = 1.0;
-    }
-    else if (isP2Win) {
-      p2Win.material.alpha = 1.0;
-    }
-    else if (isP1Win) {
-      p1Win.material.alpha = 1.0;
-    }
-  }
-}
-
-var expP2Seg = null;
-function explodeP2() {
-  if (expP2Seg == null) {
-    expP2Seg = player2;
-  }
-  else {
-    expP2Seg.model.material.alpha = 0.0;
-    grid[expP2Seg.i][expP2Seg.j] = null;
-    expP2Seg = expP2Seg.child;
-  }
-  if (expP2Seg != null) {
-    audio_explode.currentTime = 0;
-    audio_explode.play();
-    expP2Seg.model.material.ambient = [1.0, 1.0, 1.0];
-    expP2Seg.model.material.diffuse = [1.0, 1.0, 1.0];
-    expP2Seg.model.material.specular = [1.0, 1.0, 1.0];
-    expP2Seg.isExploding = true;
-    timers.push(setTimeout(explodeP2, 300 ));
-  }
-  else {
-    if (isP2Win) {
-      p2Win.material.alpha = 1.0;
-    }
-    else if (isP1Win) {
-      p1Win.material.alpha = 1.0;
-    }
-  }
-}
-
-var expESeg = null;
-function explodeEnemy() {
-  if (expESeg == null) {
-    expESeg = enemyHead;
-  }
-  else {
-    expESeg.model.material.alpha = 0.0;
-    grid[expESeg.i][expESeg.j] = null;
-    expESeg = expESeg.child;
-  }
-  if (expESeg != null) {
-    audio_explode.currentTime = 0;
-    audio_explode.play();
-    expESeg.model.material.ambient = [1.0, 1.0, 1.0];
-    expESeg.model.material.diffuse = [1.0, 1.0, 1.0];
-    expESeg.model.material.specular = [1.0, 1.0, 1.0];
-    expESeg.isExploding = true;
-    timers.push(setTimeout(explodeEnemy, 300));
-  }
-  else {
-    enemyHead.deleteSnake();
-    spawnEnemy();
-  }
-}
-
-function spawnEnemy() {
-  var i;
-  var j;
-  do {
-    i = getRandGridLoc();
-    if (i < 2) {
-      i = 2;
-    }
-    j = getRandGridLoc();
-  } while(grid[i][j] != null);
-  enemyHead = new Segment(i, j, false, false, true);
-  enemyHead.isHead = true;
-  enemyHead.addChild();
-  enemyHead.addChild();
-}
-function gridToCoord(vec, i, j) {
-  var y = i * (1.0 / GRID_WIDTH);
-  var x = j * (1.0 / GRID_WIDTH);
-  vec[0] = x;
-  vec[1] = y;
+  player = new Ship(0.5, 0.5, 0.0);
 }
 
 function getModelByName(name) {
@@ -1600,14 +766,7 @@ var lastUpdateTime = Date.now();
 timeSinceLastUpdate = 0;
 function renderModels() {
     var gUpdateTime = Date.now();
-    
-    timeSinceLastUpdate += Date.now() - lastUpdateTime;
-    var numUpdates = timeSinceLastUpdate / TIME_PER_UPDATE;
-    for (var i = 0; i < numUpdates; i++) {
-      updateGame();
-    }
-    timeSinceLastUpdate = timeSinceLastUpdate % TIME_PER_UPDATE;
-    
+    updateGame(Date.now() - lastUpdateTime);
     lastUpdateTime = Date.now();
     gUpdateTime = Date.now() - gUpdateTime;
     var renderUpdateTime = Date.now();
@@ -1735,30 +894,12 @@ function updateScore() {
   document.getElementById("p2Score").innerHTML = p2Score;
 }
 
- var frameNum = 0;
- var slowDown = false;
- function updateGame() {
-   frameNum++;
-   if (!slowDown || (slowDown && frameNum % 2 == 0)) {
-     vec3.set(lightPosition, apple.model.translation[0], apple.model.translation[1], apple.model.translation[2]);
-     if (dynamicCamera) {
-        var camDif = .03/MOVE_FRAME * snakeHead.frameNum * snakeHead.iDir;
-        
-        vec3.set(Eye, snakeHead.model.translation[0], snakeHead.model.translation[1] - .2, Math.min(-.4 + .03*snakeHead.i + camDif, -0.1));
-        vec3.set(Center, snakeHead.model.translation[0], snakeHead.model.translation[1], snakeHead.model.translation[2]);
-      }
-      if (!is2Player) {
-        enemyHead.update();
-      }
-      else {
-        player2.update();
-      }
-      snakeHead.update();
-      apple.update();
-      scoremult.update();
-      clock.update();
-   }
- }
+var frameNum = 0;
+var slowDown = false;
+function updateGame(elapsedTime) {
+  frameNum++;
+  player.update(elapsedTime);
+}
  
 function loadModelFromObj(url, desc) {
   var str = getFile(url, desc) + "";
@@ -1804,7 +945,7 @@ function loadModelFromObj(url, desc) {
         var nIndex = parseInt(vals[2]) - 1;
         
         if (!vIndex || !uvIndex || !nIndex) {
-          console.log("Indices: " + vIndex + " " + uvIndex + " " + nIndex);
+          //console.log("Indices: " + vIndex + " " + uvIndex + " " + nIndex);
         }
         
         if (!model.v[vIndex] || !model.vt[uvIndex] || !model.vn[nIndex]) {
@@ -1819,7 +960,7 @@ function loadModelFromObj(url, desc) {
       model.triangles.push(triangles);
     }
   }
-  console.log(model);
+  //console.log(model);
   loadModel(model);
   scaleUniform(model, 0.025);
   return model;
@@ -1855,10 +996,8 @@ function loadResources() {
 function main() {
   setupWebGL(); // set up the webGL environment
   //loadModels(); // load in the models from tri file
-  
   loadResources();
-  
   setupShaders(); // setup the webGL shaders
-  setUpBoard();
+  setupGame();
   renderModels(); // draw the triangles using webGL
 } // end main

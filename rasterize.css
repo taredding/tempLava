@@ -20,12 +20,12 @@
 }
 #scoreboard {
   border-style: ridge;
-  border-color: gold;
+  border-color: #00FF00;
   font-family: monospace;
   font-size: 20pt;
   border-width: 10px;
   height: 780px;
-  background-image: url(scales.jpg);
-  color: #05ffeae0;
-  text-shadow: 2px 2px 2px black;
+  color: #00FF00;
+  background: black;
+  text-shadow: 1px 1px 1px #00DD00;
 }

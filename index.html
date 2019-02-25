@@ -13,15 +13,9 @@
         <canvas id="myWebGLCanvas" width="800" height="800"></canvas>
       </div>
       <div class="column" id="scoreboard">
-        <div class="score">Player 1 Score: <label id="p1Score">0</label> <br/>Player 2 Score: <label id="p2Score">0</label></div>
         <br/>CONTROLS: <br />
-        Player 1 Move: Arrow Keys <br/>
-        Player 2 Move: TFGH <br/>
-        Start 1 Player Match: Esc <br/>
-        Start 2 Player Match: R <br />
-        Toggle Audio: M <br />
-        Toggle Camera: C <br /> <br />
-        Game Speed: <input type="range" id="speed" min="1" max="9" value="6"> <input type="button" value="Reset Game" onclick="setUpBoard()"/> <br />
+        Camera Move: WASD <br/>
+        <input type="button" value="Reset Game" onclick="setupGame()"/> <br />
         Raw FPS: <label id="fps">---</label> <br />
         Smooth FPS: <label id="fpsSmooth">---</label> <br />
         Avg Time Updating Game: <label id="gameLogicTime">---</label> <br />
