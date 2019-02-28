@@ -3,5 +3,10 @@
     "name": "snakehead",
     "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snakeHeadUV.png"},
     "model": "snakehead.obj"
+  },
+  {
+    "name": "ship",
+    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "ship.png"},
+    "model": "ship.obj"
   }
 ]

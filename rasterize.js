@@ -3,8 +3,8 @@
 /* assignment specific globals */
 const GRID_WIDTH = 20;
 const GRID_HEIGHT = 20;
-var INPUT_TRIANGLES_URL = "http://127.0.0.1/CG_PROG_5/models.json"; // triangles file loc
-var BASE_URL = "http://127.0.0.1/CG_PROG_5/";
+var INPUT_TRIANGLES_URL = "http://127.0.0.1/CGA_Proj_3/models.json"; // triangles file loc
+var BASE_URL = "http://127.0.0.1/CGA_Proj_3/";
 
 //INPUT_TRIANGLES_URL = "https://taredding.github.io/Snake3D/models.json"; // triangles file loc
 //BASE_URL = "https://taredding.github.io/Snake3D/";
@@ -517,16 +517,17 @@ function getFile(url,descr) {
 
 
 function Ship(x, y, z) {
-  this.x = x;
-  this.y = y;
-  this.z = z;
   this.speed = 0.1;
+
   
-  this.model = createModelInstance("snakehead", this.x, this.y, this.z);
+  this.model = createModelInstance("ship", 0.5, 0.3, 0.0);
+  this.position = this.model.translation;
+  this.model.center = vec3.fromValues(0, 0, 0);
+  
   this.update = function(time) {
     var elapsedSeconds = time / 1000;
-    this.y += elapsedSeconds * this.speed;
-    vec3.set(this.model.translation, this.x, this.y, this.z);
+    var y = elapsedSeconds * this.speed;
+    vec3.add(this.position, this.position, vec3.fromValues(0, y, 0));
   }
   
 }
