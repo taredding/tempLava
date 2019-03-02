@@ -517,7 +517,7 @@ function getFile(url,descr) {
 
 
 function Ship(x, y, z) {
-  this.speed = 0.1;
+  this.speed = -0.05;
 
   
   this.model = createModelInstance("ship", 0.5, 0.3, 0.0);
@@ -526,8 +526,8 @@ function Ship(x, y, z) {
   
   this.update = function(time) {
     var elapsedSeconds = time / 1000;
-    var y = elapsedSeconds * this.speed;
-    vec3.add(this.position, this.position, vec3.fromValues(0, y, 0));
+    var z = elapsedSeconds * this.speed;
+    vec3.add(this.position, this.position, vec3.fromValues(0, 0, z));
   }
   
 }
