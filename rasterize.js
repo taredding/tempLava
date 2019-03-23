@@ -1,8 +1,6 @@
 /* GLOBAL CONSTANTS AND VARIABLES */
 
 /* assignment specific globals */
-const GRID_WIDTH = 20;
-const GRID_HEIGHT = 20;
 var INPUT_TRIANGLES_URL = "http://127.0.0.1/CGA_Proj_3/models.json"; // triangles file loc
 var BASE_URL = "http://127.0.0.1/CGA_Proj_3/";
 
@@ -31,6 +29,8 @@ var triangleBuffers = []; // lists of indices into vertexBuffers by set, in trip
 var viewDelta = -.05; // how much to displace view with each key press
 
 /* shader parameter locations */
+var shaderProgram;
+
 var vPosAttribLoc; // where to put position for vertex shader
 var mMatrixULoc; // where to put model matrix for vertex shader
 var pvmMatrixULoc; // where to put project model view matrix for vertex shader
@@ -41,6 +41,23 @@ var shininessULoc; // where to put specular exponent for fragment shader
 var Blinn_PhongULoc;
 var muted = true;
 var uvAttrib;
+
+
+// Lava shader parameters
+var lavaVPosAttribLoc;
+var lavaVNormAttribLoc;
+var lavaUVAttrib;
+var lavaMMatrixULoc;
+var lavaPVMMatrixULoc;
+var lavaLightPositionULoc;
+var lavaAmbientULoc;
+var lavaDiffuseULoc;
+var lavaSpecularULoc;
+var lavaShininessULoc;
+var Lava_Blinn_PhongULoc;
+var lavaTexToggleUniform;
+var lavaAlphaUniform;
+var wavePosUniform;
 
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
@@ -57,6 +74,7 @@ var alphaUniform;
 var modelInstances = [];
 
 var player;
+var lavaPanels = [];
 
 var now,delta,then = Date.now();
 var interval = 1000/30;
@@ -456,7 +474,7 @@ function loadModel(model) {
     } // end catch
 } // end load models
 
-function createModelInstance(name, x, y, z) {
+function createModelInstance(name, x, y, z, dontAddToInstances) {
   var loc = vec3.fromValues(x, y, z);
   var oldSet = getModelByName(name);
   var set = Object.assign({}, oldSet);
@@ -470,8 +488,10 @@ function createModelInstance(name, x, y, z) {
   set.yAxis = vec3.fromValues(0, 1, 0);
   set.xAxis = vec3.fromValues(1, 0, 0);
   set.scaling = vec3.clone(set.scaling);
-  modelInstances.push(set);
-  numTriangleSets = modelInstances.length;
+  if (!dontAddToInstances) {
+    modelInstances.push(set);
+    numTriangleSets = modelInstances.length;
+  }
   return set;
 }
 
@@ -535,7 +555,9 @@ function Ship(x, y, z) {
 
 function setupGame() {
   modelInstances = [];
+  lavaPanels = [];
   player = new Ship(0.5, 0.5, 0.0);
+  loadLava();
 }
 
 function getModelByName(name) {
@@ -588,6 +610,50 @@ function setupShaders() {
             vec4 vWorldPos4 = umMatrix * vec4(aVertexPosition, 1.0);
             vWorldPos = vec3(vWorldPos4.x,vWorldPos4.y,vWorldPos4.z);
             gl_Position = upvmMatrix * vec4(aVertexPosition, 1.0);
+
+            // vertex normal (assume no non-uniform scale)
+            vec4 vWorldNormal4 = umMatrix * vec4(aVertexNormal, 0.0);
+            vVertexNormal = normalize(vec3(vWorldNormal4.x,vWorldNormal4.y,vWorldNormal4.z)); 
+            uv = a_uv;
+        }
+    `;
+    
+    var lavaVShaderCode = `
+        attribute vec3 aVertexPosition; // vertex position
+        attribute vec3 aVertexNormal; // vertex normal
+        attribute vec2 a_uv;
+        
+        
+        uniform mat4 umMatrix; // the model matrix
+        uniform mat4 upvmMatrix; // the project view model matrix
+        uniform vec3 wavePos;
+        
+        varying vec3 vWorldPos; // interpolated world position of vertex
+        varying vec3 vVertexNormal; // interpolated normal for frag shader
+        
+        varying vec2 uv;
+
+        void main(void) {
+            
+
+
+            
+            // vertex position
+            vec4 vWorldPos4 = umMatrix * vec4(aVertexPosition, 1.0);
+            vWorldPos = vec3(vWorldPos4.x,vWorldPos4.y,vWorldPos4.z);
+            
+            
+            
+            float dx = wavePos.x - vWorldPos.x;
+            float dz = wavePos.z - vWorldPos.z;
+            float dist = sqrt(dx*dx + dz*dz);
+            
+            float heightChange = 0.5/(dist);
+
+            vec4 newPos = vec4(aVertexPosition.x, aVertexPosition.y + heightChange, aVertexPosition.z, 1.0);
+            vWorldPos.y += heightChange;
+            
+            gl_Position = upvmMatrix * newPos;
 
             // vertex normal (assume no non-uniform scale)
             vec4 vWorldNormal4 = umMatrix * vec4(aVertexNormal, 0.0);
@@ -658,6 +724,70 @@ function setupShaders() {
         }
     `;
     
+    var lavaFShaderCode = `
+        precision mediump float; // set float to medium precision
+
+        // eye location
+        uniform vec3 uEyePosition; // the eye's position in world
+        
+        // light properties
+        uniform vec3 uLightAmbient; // the light's ambient color
+        uniform vec3 uLightDiffuse; // the light's diffuse color
+        uniform vec3 uLightSpecular; // the light's specular color
+        uniform vec3 uLightPosition; // the light's position
+        uniform bool texToggle;
+        uniform float alpha;
+        
+        // material properties
+        uniform vec3 uAmbient; // the ambient reflectivity
+        uniform vec3 uDiffuse; // the diffuse reflectivity
+        uniform vec3 uSpecular; // the specular reflectivity
+        uniform float uShininess; // the specular exponent
+        uniform bool Blinn_Phong;  // Blinn_Phong x Phong toggle
+        // geometry properties
+        varying vec3 vWorldPos; // world xyz of fragment
+        varying vec3 vVertexNormal; // normal of fragment
+        uniform sampler2D u_texture;
+        varying vec2 uv;
+        
+        
+        void main(void) {
+        
+            // ambient term
+            vec3 ambient = uAmbient*uLightAmbient; 
+            
+            // diffuse term
+            vec3 normal = normalize(vVertexNormal); 
+            vec3 light = normalize(uLightPosition - vWorldPos);
+            float lambert = max(0.0,dot(normal,light));
+            vec3 diffuse = uDiffuse*uLightDiffuse*lambert; // diffuse term
+            
+            // specular term
+            vec3 eye = normalize(uEyePosition - vWorldPos);
+            vec3 halfVec = normalize(light+eye);
+            float ndotLight = 2.0*dot(normal, light);
+            vec3 reflectVec = normalize(ndotLight*normal - light);
+            float highlight = 0.0;
+            if(Blinn_Phong)
+           	 	highlight = pow(max(0.0,dot(normal,halfVec)),uShininess);
+           	else 
+           		highlight = pow(max(0.0,dot(normal,reflectVec)),uShininess);
+
+            vec3 specular = uSpecular*uLightSpecular*highlight; // specular term
+            
+            // combine to output color
+            vec3 colorOut = vec3(ambient + diffuse + specular);
+            vec4 texColor = texture2D(u_texture, uv);
+            
+            float height = vWorldPos.y / 2000.0;
+            vec3 heightColor = vec3(height * 255.0, height * 255.0, height * 255.0);
+            
+            gl_FragColor = vec4(texColor.rgb - heightColor, 1.0);
+            
+            
+        }
+    `;
+    
     try {
         var fShader = gl.createShader(gl.FRAGMENT_SHADER); // create frag shader
         gl.shaderSource(fShader,fShaderCode); // attach code to shader
@@ -674,7 +804,7 @@ function setupShaders() {
             throw "error during vertex shader compile: " + gl.getShaderInfoLog(vShader);  
             gl.deleteShader(vShader);
         } else { // no compile errors
-            var shaderProgram = gl.createProgram(); // create the single shader program
+            shaderProgram = gl.createProgram(); // create the single shader program
             gl.attachShader(shaderProgram, fShader); // put frag shader in program
             gl.attachShader(shaderProgram, vShader); // put vertex shader in program
             gl.linkProgram(shaderProgram); // link program into gl context
@@ -726,6 +856,79 @@ function setupShaders() {
     catch(e) {
         console.log(e);
     } // end catch
+    
+    try {
+        var fShader = gl.createShader(gl.FRAGMENT_SHADER); // create frag shader
+        gl.shaderSource(fShader,lavaFShaderCode); // attach code to shader
+        gl.compileShader(fShader); // compile the code for gpu execution
+
+        var vShader = gl.createShader(gl.VERTEX_SHADER); // create vertex shader
+        gl.shaderSource(vShader,lavaVShaderCode); // attach code to shader
+        gl.compileShader(vShader); // compile the code for gpu execution
+            
+        if (!gl.getShaderParameter(fShader, gl.COMPILE_STATUS)) { // bad frag shader compile
+            throw "error during fragment shader compile: " + gl.getShaderInfoLog(fShader);  
+            gl.deleteShader(fShader);
+        } else if (!gl.getShaderParameter(vShader, gl.COMPILE_STATUS)) { // bad vertex shader compile
+            throw "error during vertex shader compile: " + gl.getShaderInfoLog(vShader);  
+            gl.deleteShader(vShader);
+        } else { // no compile errors
+            var shaderProgram2 = gl.createProgram(); // create the single shader program
+            gl.attachShader(shaderProgram2, fShader); // put frag shader in program
+            gl.attachShader(shaderProgram2, vShader); // put vertex shader in program
+            gl.linkProgram(shaderProgram2); // link program into gl context
+
+            if (!gl.getProgramParameter(shaderProgram2, gl.LINK_STATUS)) { // bad program link
+                throw "error during shader program linking: " + gl.getProgramInfoLog(shaderProgram2);
+            } else { // no shader program link errors
+                gl.useProgram(shaderProgram2); // activate shader program (frag and vert)
+                
+                // locate and enable vertex attributes
+                lavaVPosAttribLoc = gl.getAttribLocation(shaderProgram2, "aVertexPosition"); // ptr to vertex pos attrib
+                gl.enableVertexAttribArray(lavaVPosAttribLoc); // connect attrib to array
+                lavaVNormAttribLoc = gl.getAttribLocation(shaderProgram2, "aVertexNormal"); // ptr to vertex normal attrib
+                gl.enableVertexAttribArray(lavaVNormAttribLoc); // connect attrib to array
+                
+                lavaUVAttrib = gl.getAttribLocation(shaderProgram2, "a_uv");
+                gl.enableVertexAttribArray(lavaUVAttrib);
+                
+                // locate vertex uniforms
+                lavaMMatrixULoc = gl.getUniformLocation(shaderProgram2, "umMatrix"); // ptr to mmat
+                lavaPVMMatrixULoc = gl.getUniformLocation(shaderProgram2, "upvmMatrix"); // ptr to pvmmat
+                
+                // locate fragment uniforms
+                var eyePositionULoc = gl.getUniformLocation(shaderProgram2, "uEyePosition"); // ptr to eye position
+                var lightAmbientULoc = gl.getUniformLocation(shaderProgram2, "uLightAmbient"); // ptr to light ambient
+                var lightDiffuseULoc = gl.getUniformLocation(shaderProgram2, "uLightDiffuse"); // ptr to light diffuse
+                var lightSpecularULoc = gl.getUniformLocation(shaderProgram2, "uLightSpecular"); // ptr to light specular
+                lavaLightPositionULoc = gl.getUniformLocation(shaderProgram2, "uLightPosition"); // ptr to light position
+                lavaAmbientULoc = gl.getUniformLocation(shaderProgram2, "uAmbient"); // ptr to ambient
+                lavaDiffuseULoc = gl.getUniformLocation(shaderProgram2, "uDiffuse"); // ptr to diffuse
+                lavaSpecularULoc = gl.getUniformLocation(shaderProgram2, "uSpecular"); // ptr to specular
+                lavaShininessULoc = gl.getUniformLocation(shaderProgram2, "uShininess"); // ptr to shininess
+                Lava_Blinn_PhongULoc = gl.getUniformLocation(shaderProgram2, "Blinn_Phong");
+                
+                lavaTexToggleUniform = gl.getUniformLocation(shaderProgram2, "texToggle");
+                
+                lavaAlphaUniform = gl.getUniformLocation(shaderProgram2, "alpha");
+                
+                wavePosUniform = gl.getUniformLocation(shaderProgram2, "wavePos");
+                
+                // pass global constants into fragment uniforms
+                gl.uniform3fv(eyePositionULoc,Eye); // pass in the eye's position
+                gl.uniform3fv(lightAmbientULoc,lightAmbient); // pass in the light's ambient emission
+                gl.uniform3fv(lightDiffuseULoc,lightDiffuse); // pass in the light's diffuse emission
+                gl.uniform3fv(lightSpecularULoc,lightSpecular); // pass in the light's specular emission
+                gl.uniform3fv(lavaLightPositionULoc,lightPosition); // pass in the light's position
+                
+                lavaShaderProgram = shaderProgram2;
+            } // end if no shader program link errors
+        } // end if no compile errors
+    } // end try 
+    
+    catch(e) {
+        console.log(e);
+    } // end catch
 } // end setup shaders
 
 
@@ -766,12 +969,13 @@ var endTime = Date.now();
 var lastUpdateTime = Date.now();
 timeSinceLastUpdate = 0;
 function renderModels() {
+    
     var gUpdateTime = Date.now();
     updateGame(Date.now() - lastUpdateTime);
     lastUpdateTime = Date.now();
     gUpdateTime = Date.now() - gUpdateTime;
     var renderUpdateTime = Date.now();
-    gl.uniform3fv(lightPositionULoc,lightPosition);
+    
       // construct the model transform matrix, based on model state
       function makeModelTransform(currModel) {
           var zAxis = vec3.create(), sumRotation = mat4.create(), temp = mat4.create(), negCtr = vec3.create();
@@ -799,16 +1003,8 @@ function renderModels() {
           
       } // end make model transform
       
-      function renderTriangles(transparent, mask) {
-        if (transparent) {
-          gl.depthMask(false);
-          gl.enable(gl.BLEND);
-          gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        }
-        else {
-          gl.depthMask(true);
-        }
-        
+      function renderTriangles() {
+        gl.useProgram(shaderProgram); // activate shader program (frag and vert)        
         // render each triangle set
         var currSet; // the tri set and its material properties
         for (var whichTriSet=0; whichTriSet<modelInstances.length; whichTriSet++) {
@@ -817,45 +1013,88 @@ function renderModels() {
             
             var thisInstance = modelInstances[whichTriSet];
             currSet = modelInstances[instanceNumber];
-            if (currSet.material.alpha >= 1.0 && !transparent || currSet.material.alpha < 1.0 && transparent) {
-              // make model transform, add to view project
-              makeModelTransform(thisInstance);
-              mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
-              gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in the m matrix
-              gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
-              
-              
-              
-              // reflectivity: feed to the fragment shader
-              gl.uniform3fv(ambientULoc,currSet.material.ambient); // pass in the ambient reflectivity
-              gl.uniform3fv(diffuseULoc,currSet.material.diffuse); // pass in the diffuse reflectivity
-              gl.uniform3fv(specularULoc,currSet.material.specular); // pass in the specular reflectivity
-              gl.uniform1f(shininessULoc,currSet.material.n); // pass in the specular exponent
-              gl.uniform1i(Blinn_PhongULoc, Blinn_Phong);
-              // vertex buffer: activate and feed into vertex shader
-              gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffers[textureNumber]); // activate
-              gl.vertexAttribPointer(vPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
-              gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffers[textureNumber]); // activate
-              gl.vertexAttribPointer(vNormAttribLoc,3,gl.FLOAT,false,0,0); // feed
-              
-              gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[textureNumber]);
-              gl.vertexAttribPointer(uvAttrib, 2, gl.FLOAT, false, 0, 0);
-              
-              gl.uniform1f(alphaUniform, currSet.material.alpha);
-              
-              gl.activeTexture(gl.TEXTURE0);
-              gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
-              
-              gl.uniform1i(texToggleUniform, texToggle);
-              // triangle buffer: activate and render
-              gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[textureNumber]); // activate
-              gl.drawElements(gl.TRIANGLES,3*triSetSizes[textureNumber],gl.UNSIGNED_SHORT,0); // render
+            makeModelTransform(thisInstance);
+            mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
+            gl.uniformMatrix4fv(mMatrixULoc, false, mMatrix); // pass in the m matrix
+            gl.uniformMatrix4fv(pvmMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
             
-            }
+            
+            gl.uniform3fv(lightPositionULoc,lightPosition);
+            
+            // reflectivity: feed to the fragment shader
+            gl.uniform3fv(ambientULoc,currSet.material.ambient); // pass in the ambient reflectivity
+            gl.uniform3fv(diffuseULoc,currSet.material.diffuse); // pass in the diffuse reflectivity
+            gl.uniform3fv(specularULoc,currSet.material.specular); // pass in the specular reflectivity
+            gl.uniform1f(shininessULoc,currSet.material.n); // pass in the specular exponent
+            gl.uniform1i(Blinn_PhongULoc, Blinn_Phong);
+            // vertex buffer: activate and feed into vertex shader
+            gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffers[textureNumber]); // activate
+            gl.vertexAttribPointer(vPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
+            gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffers[textureNumber]); // activate
+            gl.vertexAttribPointer(vNormAttribLoc,3,gl.FLOAT,false,0,0); // feed
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[textureNumber]);
+            gl.vertexAttribPointer(uvAttrib, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform1f(alphaUniform, currSet.material.alpha);
+            
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
+            
+            gl.uniform1i(texToggleUniform, texToggle);
+            // triangle buffer: activate and render
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[textureNumber]); // activate
+            gl.drawElements(gl.TRIANGLES,3*triSetSizes[textureNumber],gl.UNSIGNED_SHORT,0); // render
 
             
         } // end for each triangle set
-        
+      }
+      
+      function renderLava() {
+        gl.useProgram(lavaShaderProgram); // activate shader program (frag and vert)        
+        // render each triangle set
+        var currSet; // the tri set and its material properties
+        for (var whichTriSet=0; whichTriSet<lavaPanels.length; whichTriSet++) {
+            var textureNumber = lavaPanels[whichTriSet].textureNumber;
+            var instanceNumber = whichTriSet;
+            var thisInstance = lavaPanels[whichTriSet];
+            currSet = lavaPanels[instanceNumber];
+            makeModelTransform(thisInstance);
+            mat4.multiply(pvmMatrix,pvMatrix,mMatrix); // project * view * model
+            gl.uniformMatrix4fv(lavaMMatrixULoc, false, mMatrix); // pass in the m matrix
+            gl.uniformMatrix4fv(lavaPVMMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
+            
+            // reflectivity: feed to the fragment shader
+            gl.uniform3fv(lavaAmbientULoc,currSet.material.ambient); // pass in the ambient reflectivity
+            gl.uniform3fv(lavaDiffuseULoc,currSet.material.diffuse); // pass in the diffuse reflectivity
+            gl.uniform3fv(lavaSpecularULoc,currSet.material.specular); // pass in the specular reflectivity
+            gl.uniform1f(lavaShininessULoc,currSet.material.n); // pass in the specular exponent
+            gl.uniform1i(Lava_Blinn_PhongULoc, Blinn_Phong);
+            // vertex buffer: activate and feed into vertex shader
+            gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffers[textureNumber]); // activate
+            gl.vertexAttribPointer(lavaVPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
+            gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffers[textureNumber]); // activate
+            gl.vertexAttribPointer(lavaVNormAttribLoc,3,gl.FLOAT,false,0,0); // feed
+            
+            gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[textureNumber]);
+            gl.vertexAttribPointer(lavaUVAttrib, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform1f(lavaAlphaUniform, currSet.material.alpha);
+            
+            gl.uniform3fv(lavaLightPositionULoc,lightPosition);
+            
+            gl.uniform3fv(wavePosUniform,player.model.translation);
+            
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
+            
+            gl.uniform1i(lavaTexToggleUniform, texToggle);
+            // triangle buffer: activate and render
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[textureNumber]); // activate
+            gl.drawElements(gl.TRIANGLES,3*triSetSizes[textureNumber],gl.UNSIGNED_SHORT,0); // render
+
+            
+        } // end for each triangle set
       }
       
       // var hMatrix = mat4.create(); // handedness matrix
@@ -875,8 +1114,11 @@ function renderModels() {
       mat4.lookAt(vMatrix,Eye,Center,Up); // create view matrix
       mat4.multiply(pvMatrix,pvMatrix,pMatrix); // projection
       mat4.multiply(pvMatrix,pvMatrix,vMatrix); // projection * view
-      renderTriangles(false, true);
-      renderTriangles(true, false);
+      
+      renderTriangles();
+      renderLava();
+      
+      
       renderUpdateTime = Date.now() - renderUpdateTime;
       endTime = Date.now();
       updateFPS((endTime - startTime));
@@ -993,6 +1235,14 @@ function loadResources() {
   }
 }
 
+function loadLava() {
+  lavaPanels = [];
+  for (var z = -31; z < 1; z++) {
+    for (var x = -10; x < 31; x++) {
+      lavaPanels.push(createModelInstance("panel", x / 20.0, 0.0, z / 20.0, true));
+    }
+  }
+}
 
 function main() {
   setupWebGL(); // set up the webGL environment

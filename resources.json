@@ -8,5 +8,10 @@
     "name": "ship",
     "material": {"ambient": [0.9,0.9,0.9], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "ship3.png"},
     "model": "ship2.obj"
+  },
+  {
+    "name": "panel",
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 1, "alpha": 1.0, "texture": "lava2.png"},
+    "model": "panel.obj"
   }
 ]
