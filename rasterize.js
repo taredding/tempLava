@@ -58,6 +58,11 @@ var Lava_Blinn_PhongULoc;
 var lavaTexToggleUniform;
 var lavaAlphaUniform;
 var wavePosUniform;
+var lavaSinValueUniform;
+
+var waveRotationUniform;
+var waveLengthUniform;
+var waveWidthUniform;
 
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
@@ -74,6 +79,8 @@ var alphaUniform;
 var modelInstances = [];
 
 var player;
+
+var lavaWaves = [];
 var lavaPanels = [];
 
 var now,delta,then = Date.now();
@@ -552,10 +559,75 @@ function Ship(x, y, z) {
   
 }
 
+function Wave() {
+  this.direction = vec3.create();
+  this.position = vec3.fromValues(0.5, 0.1, -1.0);
+  this.speed = 0.1 * Math.random() + 0.05;
+  this.width = 0.3;
+  this.height = 0.3;
+  this.length = 0.3;
+  this.rotation = 0.0;
+  this.velocity = vec3.create();
+  
+  this.initialize = function() {
+    vec3.normalize(this.direction, vec3.fromValues(Math.random(), 0.0, Math.random()));
+    vec3.scale(this.velocity, this.direction, this.speed);
+    this.rotation = Math.atan2(this.direction[0], this.direction[2]);
+    this.position = vec3.fromValues(0.1 + 2.0 * Math.random(), 0.0, -0.1 - 2.0 * Math.random());
+    this.width = Math.random() * 0.5;
+    this.height = Math.random() * 0.5;
+    this.length = Math.random() * 0.5;
+  }
+  
+  this.update = function() {
+    var temp = vec3.create();
+    vec3.scale(temp, this.velocity, this.speed);
+    vec3.add(this.position, this.position, temp);
+  }
+  
+  this.initialize();
+}
+
+function getWaveWidths() {
+  return getWaveValueArray("width");
+}
+
+function getWaveHeights() {
+  return getWaveValueArray("height");
+}
+
+function getWaveLengths() {
+  return getWaveValueArray("length");
+}
+
+function getWaveRotations() {
+  return getWaveValueArray("rotation");
+}
+function getWavePositionArray() {
+  var arr = [];
+  for (var i = 0; i < lavaWaves.length; i++) {
+    var p = lavaWaves[i].position;
+    arr.push(p[0], p[1], p[2]);
+  }
+  return arr;
+}
+
+function getWaveValueArray(name) {
+  var arr = [];
+  for (var i = 0; i < lavaWaves.length; i++) {
+    arr.push(lavaWaves[i][name]);
+  }
+  return arr;
+}
+
 
 function setupGame() {
   modelInstances = [];
   lavaPanels = [];
+  lavaWaves = [];
+  for (var i = 0; i < 10; i++) {
+    lavaWaves.push(new Wave());
+  }
   player = new Ship(0.5, 0.5, 0.0);
   loadLava();
 }
@@ -622,11 +694,18 @@ function setupShaders() {
         attribute vec3 aVertexPosition; // vertex position
         attribute vec3 aVertexNormal; // vertex normal
         attribute vec2 a_uv;
+        uniform float sinValue;
+        
+        
+        const int NUM_WAVES = 10;
         
         
         uniform mat4 umMatrix; // the model matrix
         uniform mat4 upvmMatrix; // the project view model matrix
-        uniform vec3 wavePos;
+        uniform vec3 wavePos[NUM_WAVES];
+        uniform float waveRot[NUM_WAVES];
+        uniform float waveLen[NUM_WAVES];
+        uniform float waveWid[NUM_WAVES];
         
         varying vec3 vWorldPos; // interpolated world position of vertex
         varying vec3 vVertexNormal; // interpolated normal for frag shader
@@ -641,17 +720,42 @@ function setupShaders() {
             // vertex position
             vec4 vWorldPos4 = umMatrix * vec4(aVertexPosition, 1.0);
             vWorldPos = vec3(vWorldPos4.x,vWorldPos4.y,vWorldPos4.z);
+            float waveHeight = 5.0;
+            float idleChange = 0.0;
+            float heightChange = 0.0;
             
+            for (int i = 0; i < NUM_WAVES; i++) {
+              float dx = vWorldPos.x - wavePos[i].x;
+              float dz = vWorldPos.z - wavePos[i].z;
+              //float dist = sqrt(dx*dx + dz*dz);
+              
+              float bob = waveRot[i] + waveLen[i] + waveWid[i];
+              
+              float cosT = cos(waveRot[i]);
+              float sinT = sin(waveRot[i]);
+              
+              float x = cosT * dx + sinT * dz;
+              float z = -1.0 * sinT * dx + cosT * dz;
+              float insideSqrt = 1.0 - x * x / (waveWid[i] * waveWid[i]) - z * z / (waveLen[i] * waveLen[i]);
+              if (insideSqrt > 0.0) {
+                float y = waveHeight * waveHeight * sqrt(insideSqrt);
+                heightChange = max(heightChange, y);
+              }
+              //if (dist < 0.3) {
+                //heightChange = max(heightChange, -waveHeight * (dist * dist / 0.09) + waveHeight);
+              //}
+              //else {
+                //idleChange = sin(sinValue + vWorldPos.x + vWorldPos.z);
+              //}
             
+            }
             
-            float dx = wavePos.x - vWorldPos.x;
-            float dz = wavePos.z - vWorldPos.z;
-            float dist = sqrt(dx*dx + dz*dz);
+            if (heightChange == 0.0) {
+              idleChange = sin(sinValue + vWorldPos.x + vWorldPos.z);
+            }
             
-            float heightChange = 0.5/(dist);
-
-            vec4 newPos = vec4(aVertexPosition.x, aVertexPosition.y + heightChange, aVertexPosition.z, 1.0);
-            vWorldPos.y += heightChange;
+            vec4 newPos = vec4(aVertexPosition.x, vWorldPos.y + heightChange + idleChange, aVertexPosition.z, 1.0);
+            vWorldPos.y += heightChange + idleChange;
             
             gl_Position = upvmMatrix * newPos;
 
@@ -659,6 +763,13 @@ function setupShaders() {
             vec4 vWorldNormal4 = umMatrix * vec4(aVertexNormal, 0.0);
             vVertexNormal = normalize(vec3(vWorldNormal4.x,vWorldNormal4.y,vWorldNormal4.z)); 
             uv = a_uv;
+            float temp = sinValue;
+            if (heightChange == 0.0) {
+             temp = abs(temp);
+            }
+            uv.x += temp;
+            uv.y -= temp;
+            
         }
     `;
     
@@ -779,10 +890,10 @@ function setupShaders() {
             vec3 colorOut = vec3(ambient + diffuse + specular);
             vec4 texColor = texture2D(u_texture, uv);
             
-            float height = vWorldPos.y / 2000.0;
+            float height = -1.0 * vWorldPos.y / 10000.0;
             vec3 heightColor = vec3(height * 255.0, height * 255.0, height * 255.0);
             
-            gl_FragColor = vec4(texColor.rgb - heightColor, 1.0);
+            gl_FragColor = vec4((texColor.rgb + heightColor), 1.0);
             
             
         }
@@ -908,11 +1019,16 @@ function setupShaders() {
                 lavaShininessULoc = gl.getUniformLocation(shaderProgram2, "uShininess"); // ptr to shininess
                 Lava_Blinn_PhongULoc = gl.getUniformLocation(shaderProgram2, "Blinn_Phong");
                 
+                lavaSinValueUniform = gl.getUniformLocation(shaderProgram2, "sinValue");
+                
                 lavaTexToggleUniform = gl.getUniformLocation(shaderProgram2, "texToggle");
                 
                 lavaAlphaUniform = gl.getUniformLocation(shaderProgram2, "alpha");
                 
                 wavePosUniform = gl.getUniformLocation(shaderProgram2, "wavePos");
+                waveRotationUniform = gl.getUniformLocation(shaderProgram2, "waveRot");
+                waveLengthUniform = gl.getUniformLocation(shaderProgram2, "waveLen");
+                waveWidthUniform = gl.getUniformLocation(shaderProgram2, "waveWid");
                 
                 // pass global constants into fragment uniforms
                 gl.uniform3fv(eyePositionULoc,Eye); // pass in the eye's position
@@ -1080,10 +1196,15 @@ function renderModels() {
             gl.vertexAttribPointer(lavaUVAttrib, 2, gl.FLOAT, false, 0, 0);
             
             gl.uniform1f(lavaAlphaUniform, currSet.material.alpha);
+            gl.uniform1f(lavaSinValueUniform, Date.now() / 10 % 360 * Math.PI / 180);
             
             gl.uniform3fv(lavaLightPositionULoc,lightPosition);
             
-            gl.uniform3fv(wavePosUniform,player.model.translation);
+            
+            gl.uniform3fv(wavePosUniform,getWavePositionArray());
+            gl.uniform1fv(waveRotationUniform,getWaveRotations());
+            gl.uniform1fv(waveWidthUniform,getWaveWidths());
+            gl.uniform1fv(waveLengthUniform,getWaveLengths());
             
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
@@ -1142,6 +1263,9 @@ var slowDown = false;
 function updateGame(elapsedTime) {
   frameNum++;
   player.update(elapsedTime);
+  for (var i = 0; i < lavaWaves.length; i++) {
+    lavaWaves[i].update(elapsedTime);
+  }
 }
  
 function loadModelFromObj(url, desc) {
