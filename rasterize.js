@@ -63,6 +63,7 @@ var lavaSinValueUniform;
 var waveRotationUniform;
 var waveLengthUniform;
 var waveWidthUniform;
+var waveHeightUniform;
 
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
@@ -561,28 +562,57 @@ function Ship(x, y, z) {
 
 function Wave() {
   this.direction = vec3.create();
-  this.position = vec3.fromValues(0.5, 0.1, -1.0);
-  this.speed = 0.1 * Math.random() + 0.05;
-  this.width = 0.3;
-  this.height = 0.3;
-  this.length = 0.3;
-  this.rotation = 0.0;
+  this.position = vec3.create();
   this.velocity = vec3.create();
   
   this.initialize = function() {
-    vec3.normalize(this.direction, vec3.fromValues(Math.random(), 0.0, Math.random()));
-    vec3.scale(this.velocity, this.direction, this.speed);
-    this.rotation = Math.atan2(this.direction[0], this.direction[2]);
-    this.position = vec3.fromValues(0.1 + 2.0 * Math.random(), 0.0, -0.1 - 2.0 * Math.random());
-    this.width = Math.random() * 0.5;
-    this.height = Math.random() * 0.5;
-    this.length = Math.random() * 0.5;
+    this.speed = 0.01 * Math.random() + 0.005;
+    this.height = 1.0 + Math.random() * 1.5;
+    this.length = 0.1 + Math.random() * 0.2;
+    this.width = Math.random() + this.length;
+    this.defHeight = this.height;
+    this.offset = Math.floor(Math.random() * 360);
+    
+    var coinFlip = Math.random() > 0.5;
+    var x, xDir;
+    var z, zDir;
+    if (coinFlip) {
+        x = -0.6 - this.width;
+        xDir = 1;
+    }
+    else {
+      x = 1.6 - this.width;
+      xDir = -1;
+    }
+    coinFlip = Math.random() > 0.5;
+    if (coinFlip) {
+        z = 0.2 + this.width;
+        zDir = -1;
+    }
+    else {
+      z = -1.7 - this.width;
+      zDir = 1;
+    }
+    
+    
+    this.position = vec3.fromValues(x, 0.0, z);
+    vec3.normalize(this.direction, vec3.fromValues(Math.random() * xDir, 0.0, Math.random()* zDir));
+    //vec3.scale(this.velocity, this.direction, this.speed);
+    this.rotation = Math.atan2(-this.direction[0], this.direction[2]);
   }
   
   this.update = function() {
     var temp = vec3.create();
-    vec3.scale(temp, this.velocity, this.speed);
+    this.height = this.defHeight + this.defHeight * Math.sin(Date.now() / 10 % 360 * Math.PI / 180 + this.offset);
+    vec3.scale(temp, this.direction, this.speed);
     vec3.add(this.position, this.position, temp);
+    
+    var xOut = (this.position[0] + this.width < -0.6 || this.position[0] - this.width > 1.6);
+    var zOut = (this.position[2] - this.width > 0.2 || this.position[2] + this.width < -1.7);
+    
+    if (xOut && zOut) {
+      this.initialize();
+    }
   }
   
   this.initialize();
@@ -621,11 +651,12 @@ function getWaveValueArray(name) {
 }
 
 
+
 function setupGame() {
   modelInstances = [];
   lavaPanels = [];
   lavaWaves = [];
-  for (var i = 0; i < 10; i++) {
+  for (var i = 0; i < 20; i++) {
     lavaWaves.push(new Wave());
   }
   player = new Ship(0.5, 0.5, 0.0);
@@ -697,7 +728,7 @@ function setupShaders() {
         uniform float sinValue;
         
         
-        const int NUM_WAVES = 10;
+        const int NUM_WAVES = 20;
         
         
         uniform mat4 umMatrix; // the model matrix
@@ -706,6 +737,7 @@ function setupShaders() {
         uniform float waveRot[NUM_WAVES];
         uniform float waveLen[NUM_WAVES];
         uniform float waveWid[NUM_WAVES];
+        uniform float waveHeight[NUM_WAVES];
         
         varying vec3 vWorldPos; // interpolated world position of vertex
         varying vec3 vVertexNormal; // interpolated normal for frag shader
@@ -720,11 +752,12 @@ function setupShaders() {
             // vertex position
             vec4 vWorldPos4 = umMatrix * vec4(aVertexPosition, 1.0);
             vWorldPos = vec3(vWorldPos4.x,vWorldPos4.y,vWorldPos4.z);
-            float waveHeight = 5.0;
+            
             float idleChange = 0.0;
             float heightChange = 0.0;
             
             for (int i = 0; i < NUM_WAVES; i++) {
+              float waveHeight = waveHeight[i];
               float dx = vWorldPos.x - wavePos[i].x;
               float dz = vWorldPos.z - wavePos[i].z;
               //float dist = sqrt(dx*dx + dz*dz);
@@ -763,11 +796,8 @@ function setupShaders() {
             vec4 vWorldNormal4 = umMatrix * vec4(aVertexNormal, 0.0);
             vVertexNormal = normalize(vec3(vWorldNormal4.x,vWorldNormal4.y,vWorldNormal4.z)); 
             uv = a_uv;
-            float temp = sinValue;
-            if (heightChange == 0.0) {
-             temp = abs(temp);
-            }
-            uv.x += temp;
+            float temp = sin(sinValue);
+              uv.x += temp;
             uv.y -= temp;
             
         }
@@ -1029,6 +1059,7 @@ function setupShaders() {
                 waveRotationUniform = gl.getUniformLocation(shaderProgram2, "waveRot");
                 waveLengthUniform = gl.getUniformLocation(shaderProgram2, "waveLen");
                 waveWidthUniform = gl.getUniformLocation(shaderProgram2, "waveWid");
+                waveHeightUniform = gl.getUniformLocation(shaderProgram2, "waveHeight");
                 
                 // pass global constants into fragment uniforms
                 gl.uniform3fv(eyePositionULoc,Eye); // pass in the eye's position
@@ -1205,6 +1236,7 @@ function renderModels() {
             gl.uniform1fv(waveRotationUniform,getWaveRotations());
             gl.uniform1fv(waveWidthUniform,getWaveWidths());
             gl.uniform1fv(waveLengthUniform,getWaveLengths());
+            gl.uniform1fv(waveHeightUniform,getWaveHeights());
             
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
