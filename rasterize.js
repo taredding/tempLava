@@ -4,6 +4,9 @@
 var INPUT_TRIANGLES_URL = "http://127.0.0.1/CGA_Proj_3/models.json"; // triangles file loc
 var BASE_URL = "http://127.0.0.1/CGA_Proj_3/";
 
+
+const NUM_WAVES = 20;
+
 //INPUT_TRIANGLES_URL = "https://taredding.github.io/Snake3D/models.json"; // triangles file loc
 //BASE_URL = "https://taredding.github.io/Snake3D/";
 
@@ -566,7 +569,7 @@ function Wave() {
   this.velocity = vec3.create();
   
   this.initialize = function() {
-    this.speed = 0.01 * Math.random() + 0.005;
+    this.speed = 0.01 * Math.random() + 0.005 * Math.random() + 0.005;
     this.height = 1.0 + Math.random() * 1.5;
     this.length = 0.1 + Math.random() * 0.2;
     this.width = Math.random() + this.length;
@@ -656,7 +659,7 @@ function setupGame() {
   modelInstances = [];
   lavaPanels = [];
   lavaWaves = [];
-  for (var i = 0; i < 20; i++) {
+  for (var i = 0; i < NUM_WAVES; i++) {
     lavaWaves.push(new Wave());
   }
   player = new Ship(0.5, 0.5, 0.0);
@@ -723,12 +726,11 @@ function setupShaders() {
     
     var lavaVShaderCode = `
         attribute vec3 aVertexPosition; // vertex position
-        attribute vec3 aVertexNormal; // vertex normal
         attribute vec2 a_uv;
         uniform float sinValue;
         
         
-        const int NUM_WAVES = 20;
+        const int NUM_WAVES =` + NUM_WAVES + `;
         
         
         uniform mat4 umMatrix; // the model matrix
@@ -740,7 +742,6 @@ function setupShaders() {
         uniform float waveHeight[NUM_WAVES];
         
         varying vec3 vWorldPos; // interpolated world position of vertex
-        varying vec3 vVertexNormal; // interpolated normal for frag shader
         
         varying vec2 uv;
 
@@ -791,10 +792,7 @@ function setupShaders() {
             vWorldPos.y += heightChange + idleChange;
             
             gl_Position = upvmMatrix * newPos;
-
-            // vertex normal (assume no non-uniform scale)
-            vec4 vWorldNormal4 = umMatrix * vec4(aVertexNormal, 0.0);
-            vVertexNormal = normalize(vec3(vWorldNormal4.x,vWorldNormal4.y,vWorldNormal4.z)); 
+ 
             uv = a_uv;
             float temp = sin(sinValue);
               uv.x += temp;
@@ -867,57 +865,13 @@ function setupShaders() {
     
     var lavaFShaderCode = `
         precision mediump float; // set float to medium precision
-
-        // eye location
-        uniform vec3 uEyePosition; // the eye's position in world
-        
-        // light properties
-        uniform vec3 uLightAmbient; // the light's ambient color
-        uniform vec3 uLightDiffuse; // the light's diffuse color
-        uniform vec3 uLightSpecular; // the light's specular color
-        uniform vec3 uLightPosition; // the light's position
-        uniform bool texToggle;
-        uniform float alpha;
-        
-        // material properties
-        uniform vec3 uAmbient; // the ambient reflectivity
-        uniform vec3 uDiffuse; // the diffuse reflectivity
-        uniform vec3 uSpecular; // the specular reflectivity
-        uniform float uShininess; // the specular exponent
-        uniform bool Blinn_Phong;  // Blinn_Phong x Phong toggle
         // geometry properties
         varying vec3 vWorldPos; // world xyz of fragment
-        varying vec3 vVertexNormal; // normal of fragment
         uniform sampler2D u_texture;
         varying vec2 uv;
-        
-        
         void main(void) {
-        
-            // ambient term
-            vec3 ambient = uAmbient*uLightAmbient; 
-            
-            // diffuse term
-            vec3 normal = normalize(vVertexNormal); 
-            vec3 light = normalize(uLightPosition - vWorldPos);
-            float lambert = max(0.0,dot(normal,light));
-            vec3 diffuse = uDiffuse*uLightDiffuse*lambert; // diffuse term
-            
-            // specular term
-            vec3 eye = normalize(uEyePosition - vWorldPos);
-            vec3 halfVec = normalize(light+eye);
-            float ndotLight = 2.0*dot(normal, light);
-            vec3 reflectVec = normalize(ndotLight*normal - light);
-            float highlight = 0.0;
-            if(Blinn_Phong)
-           	 	highlight = pow(max(0.0,dot(normal,halfVec)),uShininess);
-           	else 
-           		highlight = pow(max(0.0,dot(normal,reflectVec)),uShininess);
-
-            vec3 specular = uSpecular*uLightSpecular*highlight; // specular term
             
             // combine to output color
-            vec3 colorOut = vec3(ambient + diffuse + specular);
             vec4 texColor = texture2D(u_texture, uv);
             
             float height = -1.0 * vWorldPos.y / 10000.0;
@@ -1027,8 +981,6 @@ function setupShaders() {
                 // locate and enable vertex attributes
                 lavaVPosAttribLoc = gl.getAttribLocation(shaderProgram2, "aVertexPosition"); // ptr to vertex pos attrib
                 gl.enableVertexAttribArray(lavaVPosAttribLoc); // connect attrib to array
-                lavaVNormAttribLoc = gl.getAttribLocation(shaderProgram2, "aVertexNormal"); // ptr to vertex normal attrib
-                gl.enableVertexAttribArray(lavaVNormAttribLoc); // connect attrib to array
                 
                 lavaUVAttrib = gl.getAttribLocation(shaderProgram2, "a_uv");
                 gl.enableVertexAttribArray(lavaUVAttrib);
@@ -1037,36 +989,18 @@ function setupShaders() {
                 lavaMMatrixULoc = gl.getUniformLocation(shaderProgram2, "umMatrix"); // ptr to mmat
                 lavaPVMMatrixULoc = gl.getUniformLocation(shaderProgram2, "upvmMatrix"); // ptr to pvmmat
                 
-                // locate fragment uniforms
-                var eyePositionULoc = gl.getUniformLocation(shaderProgram2, "uEyePosition"); // ptr to eye position
-                var lightAmbientULoc = gl.getUniformLocation(shaderProgram2, "uLightAmbient"); // ptr to light ambient
-                var lightDiffuseULoc = gl.getUniformLocation(shaderProgram2, "uLightDiffuse"); // ptr to light diffuse
-                var lightSpecularULoc = gl.getUniformLocation(shaderProgram2, "uLightSpecular"); // ptr to light specular
-                lavaLightPositionULoc = gl.getUniformLocation(shaderProgram2, "uLightPosition"); // ptr to light position
-                lavaAmbientULoc = gl.getUniformLocation(shaderProgram2, "uAmbient"); // ptr to ambient
-                lavaDiffuseULoc = gl.getUniformLocation(shaderProgram2, "uDiffuse"); // ptr to diffuse
-                lavaSpecularULoc = gl.getUniformLocation(shaderProgram2, "uSpecular"); // ptr to specular
-                lavaShininessULoc = gl.getUniformLocation(shaderProgram2, "uShininess"); // ptr to shininess
-                Lava_Blinn_PhongULoc = gl.getUniformLocation(shaderProgram2, "Blinn_Phong");
                 
                 lavaSinValueUniform = gl.getUniformLocation(shaderProgram2, "sinValue");
                 
                 lavaTexToggleUniform = gl.getUniformLocation(shaderProgram2, "texToggle");
                 
-                lavaAlphaUniform = gl.getUniformLocation(shaderProgram2, "alpha");
+                //lavaAlphaUniform = gl.getUniformLocation(shaderProgram2, "alpha");
                 
                 wavePosUniform = gl.getUniformLocation(shaderProgram2, "wavePos");
                 waveRotationUniform = gl.getUniformLocation(shaderProgram2, "waveRot");
                 waveLengthUniform = gl.getUniformLocation(shaderProgram2, "waveLen");
                 waveWidthUniform = gl.getUniformLocation(shaderProgram2, "waveWid");
                 waveHeightUniform = gl.getUniformLocation(shaderProgram2, "waveHeight");
-                
-                // pass global constants into fragment uniforms
-                gl.uniform3fv(eyePositionULoc,Eye); // pass in the eye's position
-                gl.uniform3fv(lightAmbientULoc,lightAmbient); // pass in the light's ambient emission
-                gl.uniform3fv(lightDiffuseULoc,lightDiffuse); // pass in the light's diffuse emission
-                gl.uniform3fv(lightSpecularULoc,lightSpecular); // pass in the light's specular emission
-                gl.uniform3fv(lavaLightPositionULoc,lightPosition); // pass in the light's position
                 
                 lavaShaderProgram = shaderProgram2;
             } // end if no shader program link errors
@@ -1211,25 +1145,15 @@ function renderModels() {
             gl.uniformMatrix4fv(lavaMMatrixULoc, false, mMatrix); // pass in the m matrix
             gl.uniformMatrix4fv(lavaPVMMatrixULoc, false, pvmMatrix); // pass in the hpvm matrix
             
-            // reflectivity: feed to the fragment shader
-            gl.uniform3fv(lavaAmbientULoc,currSet.material.ambient); // pass in the ambient reflectivity
-            gl.uniform3fv(lavaDiffuseULoc,currSet.material.diffuse); // pass in the diffuse reflectivity
-            gl.uniform3fv(lavaSpecularULoc,currSet.material.specular); // pass in the specular reflectivity
-            gl.uniform1f(lavaShininessULoc,currSet.material.n); // pass in the specular exponent
-            gl.uniform1i(Lava_Blinn_PhongULoc, Blinn_Phong);
             // vertex buffer: activate and feed into vertex shader
             gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffers[textureNumber]); // activate
             gl.vertexAttribPointer(lavaVPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
-            gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffers[textureNumber]); // activate
-            gl.vertexAttribPointer(lavaVNormAttribLoc,3,gl.FLOAT,false,0,0); // feed
             
             gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[textureNumber]);
             gl.vertexAttribPointer(lavaUVAttrib, 2, gl.FLOAT, false, 0, 0);
             
             gl.uniform1f(lavaAlphaUniform, currSet.material.alpha);
             gl.uniform1f(lavaSinValueUniform, Date.now() / 10 % 360 * Math.PI / 180);
-            
-            gl.uniform3fv(lavaLightPositionULoc,lightPosition);
             
             
             gl.uniform3fv(wavePosUniform,getWavePositionArray());
@@ -1241,7 +1165,6 @@ function renderModels() {
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
             
-            gl.uniform1i(lavaTexToggleUniform, texToggle);
             // triangle buffer: activate and render
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[textureNumber]); // activate
             gl.drawElements(gl.TRIANGLES,3*triSetSizes[textureNumber],gl.UNSIGNED_SHORT,0); // render
