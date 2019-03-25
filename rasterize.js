@@ -570,7 +570,7 @@ function Wave() {
   
   this.initialize = function() {
     this.speed = 0.01 * Math.random() + 0.005 * Math.random() + 0.005;
-    this.height = 1.0 + Math.random() * 1.5;
+    this.height = 0.1 + Math.random() * 0.5;
     this.length = 0.1 + Math.random() * 0.2;
     this.width = Math.random() + this.length;
     this.defHeight = this.height;
@@ -784,9 +784,9 @@ function setupShaders() {
             
             }
             
-            if (heightChange == 0.0) {
-              idleChange = sin(sinValue + vWorldPos.x + vWorldPos.z);
-            }
+            //if (heightChange == 0.0) {
+              idleChange = 0.1 * sin(sinValue + vWorldPos.x + vWorldPos.z);
+            //}
             
             vec4 newPos = vec4(aVertexPosition.x, vWorldPos.y + heightChange + idleChange, aVertexPosition.z, 1.0);
             vWorldPos.y += heightChange + idleChange;
@@ -872,12 +872,13 @@ function setupShaders() {
         void main(void) {
             
             // combine to output color
-            vec4 texColor = texture2D(u_texture, uv);
+            vec2 newUV = vec2(vWorldPos.x * 2.0, vWorldPos.z * 2.0);
+            vec4 texColor = texture2D(u_texture, newUV);
             
-            float height = -1.0 * vWorldPos.y / 10000.0;
+            float height = vWorldPos.y / 1000.0;
             vec3 heightColor = vec3(height * 255.0, height * 255.0, height * 255.0);
             
-            gl_FragColor = vec4((texColor.rgb + heightColor), 1.0);
+            gl_FragColor = vec4((texColor.rgb - heightColor), 1.0);
             
             
         }
@@ -1316,11 +1317,64 @@ function loadResources() {
 
 function loadLava() {
   lavaPanels = [];
-  for (var z = -31; z < 1; z++) {
+  /**for (var z = -31; z < 1; z++) {
     for (var x = -10; x < 31; x++) {
       lavaPanels.push(createModelInstance("panel", x / 20.0, 0.0, z / 20.0, true));
     }
+  }*/
+  var zMin = -1.7;
+  var zMax = 0.5;
+  var xMin = -0.6;
+  var xMax = 1.6;
+  const STEPS_PER_DIM = 100;
+  const xStep = (xMax - xMin) / STEPS_PER_DIM;
+  const zStep = (zMax - zMin) / STEPS_PER_DIM;
+  
+  var vertices = [];
+  
+  for (var z = zMin; z < zMax; z+=zStep) {
+    for (var x = xMin; x < xMax; x+=xStep) {
+
+     vertices.push([x, 0.0, z]);
+    }
   }
+  
+  var triangles = [];
+  for (var z = 0; z < STEPS_PER_DIM - 1; z++) {
+    for (var x = 0; x < STEPS_PER_DIM - 1; x++) {
+      var vNum = STEPS_PER_DIM * z + x;
+      var p1 = vNum;
+      var p2 = vNum + STEPS_PER_DIM;
+      var p3 = vNum + STEPS_PER_DIM + 1;
+      var p4 = vNum + 1;
+      triangles.push([p1, p2, p3], [p1, p4, p3]);
+    }
+  }
+  
+  var UVs = [];
+  var normals = [];
+  
+  for (var i = 0; i < vertices.length; i++) {
+    UVs.push([0, 0]);
+    normals.push([0, 1, 0]);
+  }
+  
+
+  
+  var lava = {};
+  lava.scaling = vec3.fromValues(1, 1, 1);
+  vec3.normalize(lava.scaling, lava.scaling);
+  lava.translation = vec3.fromValues(0, 0, 0);
+  lava.yAxis = vec3.fromValues(0, 1, 0);
+  lava.xAxis = vec3.fromValues(1, 0, 0);
+  lava.vertices = vertices;
+  lava.triangles = triangles;
+  lava.normals = normals;
+  lava.uvs = UVs;
+  lava.material = {"ambient": [0.1,0.1,0.1], "diffuse": [0.6,0.6,0.6], "specular": [0.3,0.3,0.3], "n": 11, "alpha": 0.9, "texture": "lava.png"};
+  loadModel(lava);
+  lavaPanels.push(lava);
+  addTexture(BASE_URL + "textures/" + "lava2.png");
 }
 
 function main() {
