@@ -1,0 +1,9 @@
+small waves
+  shortin height
+  very common
+  can spawn anywhere in plane
+  die anywhere in plane
+    when height ~= 0
+medium waves
+  com
+  

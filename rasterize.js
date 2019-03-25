@@ -773,7 +773,7 @@ function setupShaders() {
               float insideSqrt = 1.0 - x * x / (waveWid[i] * waveWid[i]) - z * z / (waveLen[i] * waveLen[i]);
               if (insideSqrt > 0.0) {
                 float y = waveHeight * waveHeight * sqrt(insideSqrt);
-                heightChange = max(heightChange, y);
+                heightChange += y; //max(heightChange, y);
               }
               //if (dist < 0.3) {
                 //heightChange = max(heightChange, -waveHeight * (dist * dist / 0.09) + waveHeight);
