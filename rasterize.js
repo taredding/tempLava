@@ -5,7 +5,11 @@ var INPUT_TRIANGLES_URL = "http://127.0.0.1/CGA_Proj_3/models.json"; // triangle
 var BASE_URL = "http://127.0.0.1/CGA_Proj_3/";
 
 
-const NUM_WAVES = 20;
+const NUM_WAVES = 500;
+const LAVA_MIN_X = -1.1;
+const LAVA_MAX_X = 2.1;
+const LAVA_MIN_Z = -2.5;
+const LAVA_MAX_Z = 0.5;
 
 //INPUT_TRIANGLES_URL = "https://taredding.github.io/Snake3D/models.json"; // triangles file loc
 //BASE_URL = "https://taredding.github.io/Snake3D/";
@@ -563,6 +567,36 @@ function Ship(x, y, z) {
   
 }
 
+
+
+function TinyWave() {
+  this.position = vec3.create();
+
+  this.length;
+  this.width;
+  this.rotation;
+  this.defHeight;
+  this.height;
+  this.offset = Math.floor(Math.random() * 360);
+  
+  this.update = function() {
+    this.height = this.defHeight * Math.sin(Date.now() / 10 % 360 * Math.PI / 180 + this.offset);
+    if ((this.height >= -0.005 && this.height <= 0.005) && Math.random() > 0.2) {
+      this.randomize();
+    }
+  }
+  this.randomize = function() {
+    this.position[0] = (LAVA_MAX_X - LAVA_MIN_X) * Math.random() + LAVA_MIN_X;
+    this.position[2] = (LAVA_MAX_Z - LAVA_MIN_Z) * Math.random() + LAVA_MIN_Z;
+    
+    this.defHeight = 0.2 + Math.random() * 0.2;
+    this.width = 0.1 + Math.random() * 0.1;
+    this.length = 0.1 + 0.1 * Math.random();
+    this.rotation = Math.PI * 2 * Math.random();
+  }
+  this.randomize();
+}
+
 function Wave() {
   this.direction = vec3.create();
   this.position = vec3.create();
@@ -599,7 +633,7 @@ function Wave() {
     
     
     this.position = vec3.fromValues(x, 0.0, z);
-    vec3.normalize(this.direction, vec3.fromValues(Math.random() * xDir, 0.0, Math.random()* zDir));
+    vec3.normalize(this.direction, vec3.fromValues(( 0.1 + Math.random()) * xDir, 0.0, (0.1 + Math.random())* zDir));
     //vec3.scale(this.velocity, this.direction, this.speed);
     this.rotation = Math.atan2(-this.direction[0], this.direction[2]);
   }
@@ -659,9 +693,14 @@ function setupGame() {
   modelInstances = [];
   lavaPanels = [];
   lavaWaves = [];
-  for (var i = 0; i < NUM_WAVES; i++) {
+  for (var i = 0; i < NUM_WAVES - 20; i++) {
+    lavaWaves.push(new TinyWave());
+  }
+  
+  for (var i = 0; i < 20; i++) {
     lavaWaves.push(new Wave());
   }
+  
   player = new Ship(0.5, 0.5, 0.0);
   loadLava();
 }
@@ -773,7 +812,7 @@ function setupShaders() {
               float insideSqrt = 1.0 - x * x / (waveWid[i] * waveWid[i]) - z * z / (waveLen[i] * waveLen[i]);
               if (insideSqrt > 0.0) {
                 float y = waveHeight * waveHeight * sqrt(insideSqrt);
-                heightChange += y; //max(heightChange, y);
+                heightChange += sign(waveHeight) * y; //max(heightChange, y);
               }
               //if (dist < 0.3) {
                 //heightChange = max(heightChange, -waveHeight * (dist * dist / 0.09) + waveHeight);
@@ -785,7 +824,7 @@ function setupShaders() {
             }
             
             //if (heightChange == 0.0) {
-              idleChange = 0.1 * sin(sinValue + vWorldPos.x + vWorldPos.z);
+              idleChange = 0.05 * sin(sinValue + vWorldPos.x + vWorldPos.z);
             //}
             
             vec4 newPos = vec4(aVertexPosition.x, vWorldPos.y + heightChange + idleChange, aVertexPosition.z, 1.0);
@@ -1322,10 +1361,10 @@ function loadLava() {
       lavaPanels.push(createModelInstance("panel", x / 20.0, 0.0, z / 20.0, true));
     }
   }*/
-  var zMin = -1.7;
-  var zMax = 0.5;
-  var xMin = -0.6;
-  var xMax = 1.6;
+  var zMin = LAVA_MIN_Z;
+  var zMax = LAVA_MAX_Z;
+  var xMin = LAVA_MIN_X;
+  var xMax = LAVA_MAX_X;
   const STEPS_PER_DIM = 100;
   const xStep = (xMax - xMin) / STEPS_PER_DIM;
   const zStep = (zMax - zMin) / STEPS_PER_DIM;

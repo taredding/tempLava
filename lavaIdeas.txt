@@ -2,8 +2,12 @@ small waves
   shortin height
   very common
   can spawn anywhere in plane
+    spawn with height 0
   die anywhere in plane
     when height ~= 0
 medium waves
-  com
+  common
+  medium height
+  can spawn outside of plane
+  keep near constant height
   
