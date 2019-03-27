@@ -11,3 +11,5 @@ medium waves
   can spawn outside of plane
   keep near constant height
   
+store my waves as a texture
+  

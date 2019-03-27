@@ -53,7 +53,6 @@ var uvAttrib;
 // Lava shader parameters
 var lavaVPosAttribLoc;
 var lavaVNormAttribLoc;
-var lavaUVAttrib;
 var lavaMMatrixULoc;
 var lavaPVMMatrixULoc;
 var lavaLightPositionULoc;
@@ -70,7 +69,7 @@ var lavaSinValueUniform;
 var waveRotationUniform;
 var waveLengthUniform;
 var waveWidthUniform;
-var waveHeightUniform;
+
 
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
@@ -579,7 +578,7 @@ function TinyWave() {
   this.height;
   this.offset = Math.floor(Math.random() * 360);
   
-  this.update = function() {
+  this.update = function(timePassed) {
     this.height = this.defHeight * Math.sin(Date.now() / 10 % 360 * Math.PI / 180 + this.offset);
     if ((this.height >= -0.005 && this.height <= 0.005) && Math.random() > 0.2) {
       this.randomize();
@@ -589,7 +588,7 @@ function TinyWave() {
     this.position[0] = (LAVA_MAX_X - LAVA_MIN_X) * Math.random() + LAVA_MIN_X;
     this.position[2] = (LAVA_MAX_Z - LAVA_MIN_Z) * Math.random() + LAVA_MIN_Z;
     
-    this.defHeight = 0.2 + Math.random() * 0.2;
+    this.defHeight = 0.1 + Math.random() * 0.2;
     this.width = 0.1 + Math.random() * 0.1;
     this.length = 0.1 + 0.1 * Math.random();
     this.rotation = Math.PI * 2 * Math.random();
@@ -603,8 +602,8 @@ function Wave() {
   this.velocity = vec3.create();
   
   this.initialize = function() {
-    this.speed = 0.01 * Math.random() + 0.005 * Math.random() + 0.005;
-    this.height = 0.1 + Math.random() * 0.5;
+    this.speed = (0.01 * Math.random() + 0.005 * Math.random() + 0.005) / 20.0;
+    this.height = 0.1 + Math.random() * 0.3;
     this.length = 0.1 + Math.random() * 0.2;
     this.width = Math.random() + this.length;
     this.defHeight = this.height;
@@ -638,10 +637,10 @@ function Wave() {
     this.rotation = Math.atan2(-this.direction[0], this.direction[2]);
   }
   
-  this.update = function() {
+  this.update = function(timePassed) {
     var temp = vec3.create();
     this.height = this.defHeight + this.defHeight * Math.sin(Date.now() / 10 % 360 * Math.PI / 180 + this.offset);
-    vec3.scale(temp, this.direction, this.speed);
+    vec3.scale(temp, this.direction, this.speed *timePassed);
     vec3.add(this.position, this.position, temp);
     
     var xOut = (this.position[0] + this.width < -0.6 || this.position[0] - this.width > 1.6);
@@ -659,10 +658,6 @@ function getWaveWidths() {
   return getWaveValueArray("width");
 }
 
-function getWaveHeights() {
-  return getWaveValueArray("height");
-}
-
 function getWaveLengths() {
   return getWaveValueArray("length");
 }
@@ -674,7 +669,7 @@ function getWavePositionArray() {
   var arr = [];
   for (var i = 0; i < lavaWaves.length; i++) {
     var p = lavaWaves[i].position;
-    arr.push(p[0], p[1], p[2]);
+    arr.push(p[0], lavaWaves[i].height, p[2]);
   }
   return arr;
 }
@@ -765,7 +760,6 @@ function setupShaders() {
     
     var lavaVShaderCode = `
         attribute vec3 aVertexPosition; // vertex position
-        attribute vec2 a_uv;
         uniform float sinValue;
         
         
@@ -778,12 +772,10 @@ function setupShaders() {
         uniform float waveRot[NUM_WAVES];
         uniform float waveLen[NUM_WAVES];
         uniform float waveWid[NUM_WAVES];
-        uniform float waveHeight[NUM_WAVES];
         
         varying vec3 vWorldPos; // interpolated world position of vertex
+        varying float shortHeight;
         
-        varying vec2 uv;
-
         void main(void) {
             
 
@@ -795,9 +787,9 @@ function setupShaders() {
             
             float idleChange = 0.0;
             float heightChange = 0.0;
-            
+            shortHeight = 0.0;
             for (int i = 0; i < NUM_WAVES; i++) {
-              float waveHeight = waveHeight[i];
+              float waveHeight = wavePos[i].y;
               float dx = vWorldPos.x - wavePos[i].x;
               float dz = vWorldPos.z - wavePos[i].z;
               //float dist = sqrt(dx*dx + dz*dz);
@@ -812,30 +804,26 @@ function setupShaders() {
               float insideSqrt = 1.0 - x * x / (waveWid[i] * waveWid[i]) - z * z / (waveLen[i] * waveLen[i]);
               if (insideSqrt > 0.0) {
                 float y = waveHeight * waveHeight * sqrt(insideSqrt);
-                heightChange += sign(waveHeight) * y; //max(heightChange, y);
+                y = sign(waveHeight) * y;
+                heightChange += y; //max(heightChange, y);
+                  shortHeight += atan(6.0*y) - 2.0*y;
+                
               }
-              //if (dist < 0.3) {
-                //heightChange = max(heightChange, -waveHeight * (dist * dist / 0.09) + waveHeight);
-              //}
-              //else {
-                //idleChange = sin(sinValue + vWorldPos.x + vWorldPos.z);
-              //}
             
             }
+            shortHeight -= 0.5;
             
-            //if (heightChange == 0.0) {
               idleChange = 0.05 * sin(sinValue + vWorldPos.x + vWorldPos.z);
-            //}
             
             vec4 newPos = vec4(aVertexPosition.x, vWorldPos.y + heightChange + idleChange, aVertexPosition.z, 1.0);
             vWorldPos.y += heightChange + idleChange;
             
             gl_Position = upvmMatrix * newPos;
  
-            uv = a_uv;
-            float temp = sin(sinValue);
-              uv.x += temp;
-            uv.y -= temp;
+            //uv = a_uv;
+            //float temp = sin(sinValue);
+              //uv.x += temp;
+            //uv.y -= temp;
             
         }
     `;
@@ -906,16 +894,23 @@ function setupShaders() {
         precision mediump float; // set float to medium precision
         // geometry properties
         varying vec3 vWorldPos; // world xyz of fragment
+        varying float shortHeight;
         uniform sampler2D u_texture;
-        varying vec2 uv;
         void main(void) {
             
             // combine to output color
             vec2 newUV = vec2(vWorldPos.x * 2.0, vWorldPos.z * 2.0);
             vec4 texColor = texture2D(u_texture, newUV);
             
-            float height = vWorldPos.y / 1000.0;
-            vec3 heightColor = vec3(height * 255.0, height * 255.0, height * 255.0);
+            float height = shortHeight;
+            float val = height;
+            float r = val;
+            float g = val;
+            float b = val;
+            //if (height > 0.045) {
+              //val /= 10.0;
+            //}
+            vec3 heightColor = vec3(val, val, val);
             
             gl_FragColor = vec4((texColor.rgb - heightColor), 1.0);
             
@@ -1022,8 +1017,6 @@ function setupShaders() {
                 lavaVPosAttribLoc = gl.getAttribLocation(shaderProgram2, "aVertexPosition"); // ptr to vertex pos attrib
                 gl.enableVertexAttribArray(lavaVPosAttribLoc); // connect attrib to array
                 
-                lavaUVAttrib = gl.getAttribLocation(shaderProgram2, "a_uv");
-                gl.enableVertexAttribArray(lavaUVAttrib);
                 
                 // locate vertex uniforms
                 lavaMMatrixULoc = gl.getUniformLocation(shaderProgram2, "umMatrix"); // ptr to mmat
@@ -1040,7 +1033,7 @@ function setupShaders() {
                 waveRotationUniform = gl.getUniformLocation(shaderProgram2, "waveRot");
                 waveLengthUniform = gl.getUniformLocation(shaderProgram2, "waveLen");
                 waveWidthUniform = gl.getUniformLocation(shaderProgram2, "waveWid");
-                waveHeightUniform = gl.getUniformLocation(shaderProgram2, "waveHeight");
+                
                 
                 lavaShaderProgram = shaderProgram2;
             } // end if no shader program link errors
@@ -1189,8 +1182,6 @@ function renderModels() {
             gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffers[textureNumber]); // activate
             gl.vertexAttribPointer(lavaVPosAttribLoc,3,gl.FLOAT,false,0,0); // feed
             
-            gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffers[textureNumber]);
-            gl.vertexAttribPointer(lavaUVAttrib, 2, gl.FLOAT, false, 0, 0);
             
             gl.uniform1f(lavaAlphaUniform, currSet.material.alpha);
             gl.uniform1f(lavaSinValueUniform, Date.now() / 10 % 360 * Math.PI / 180);
@@ -1200,7 +1191,7 @@ function renderModels() {
             gl.uniform1fv(waveRotationUniform,getWaveRotations());
             gl.uniform1fv(waveWidthUniform,getWaveWidths());
             gl.uniform1fv(waveLengthUniform,getWaveLengths());
-            gl.uniform1fv(waveHeightUniform,getWaveHeights());
+            
             
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
