@@ -11,7 +11,7 @@
   },
   {
     "name": "panel",
-    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 1, "alpha": 1.0, "texture": "lava2.png"},
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 1, "alpha": 1.0, "texture": "lava3.jpg"},
     "model": "panel.obj"
   }
 ]

@@ -19,6 +19,9 @@
   text-shadow: 2px 2px 2px black;
 }
 #scoreboard {
+  position: absolute;
+    left: 800px;
+    top: 0px;
   border-style: ridge;
   border-color: #00FF00;
   font-family: monospace;
@@ -29,3 +32,18 @@
   background: black;
   text-shadow: 1px 1px 1px #00DD00;
 }
+
+#myWebGLCanvas {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 10;
+}
+
+#myImageCanvas {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 0;
+}
+

@@ -3,18 +3,20 @@
 /* assignment specific globals */
 var INPUT_TRIANGLES_URL = "http://127.0.0.1/CGA_Proj_3/models.json"; // triangles file loc
 var BASE_URL = "http://127.0.0.1/CGA_Proj_3/";
-
+var defaultEye = vec3.fromValues(0.5,0.5,0.5); // default eye position in world space
 
 const NUM_WAVES = 500;
-const LAVA_MIN_X = -1.1;
-const LAVA_MAX_X = 2.1;
-const LAVA_MIN_Z = -2.5;
-const LAVA_MAX_Z = 0.5;
+const LAVA_WIDTH = 8.0;
+const LAVA_DEPTH = 3.0;
+const LAVA_MIN_X = defaultEye[0] - 0.5 * LAVA_WIDTH;
+const LAVA_MAX_X = LAVA_MIN_X + LAVA_WIDTH;
+const LAVA_MIN_Z = defaultEye[2] - 0.5 * LAVA_DEPTH - 1.0;
+const LAVA_MAX_Z = LAVA_MIN_Z + LAVA_DEPTH;
 
 //INPUT_TRIANGLES_URL = "https://taredding.github.io/Snake3D/models.json"; // triangles file loc
 //BASE_URL = "https://taredding.github.io/Snake3D/";
 
-var defaultEye = vec3.fromValues(0.5,0.5,0.5); // default eye position in world space
+
 var defaultCenter = vec3.fromValues(0.5,0.5,-0.5); // default view direction in world space
 var defaultUp = vec3.fromValues(0,1,0); // default view up vector
 var lightAmbient = vec3.fromValues(0.75,0.75,0.75); // default light ambient emission
@@ -52,6 +54,7 @@ var uvAttrib;
 
 // Lava shader parameters
 var lavaVPosAttribLoc;
+var lavaEyePositionULoc;
 var lavaVNormAttribLoc;
 var lavaMMatrixULoc;
 var lavaPVMMatrixULoc;
@@ -70,6 +73,7 @@ var waveRotationUniform;
 var waveLengthUniform;
 var waveWidthUniform;
 
+var lavaTexture2;
 
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
@@ -386,6 +390,8 @@ function setupWebGL() {
     // Set up keys
     document.onkeydown = handleKeyDown; // call this when key pressed
     
+
+    
      // create a webgl canvas and set it up
      var webGLCanvas = document.getElementById("myWebGLCanvas"); // create a webgl canvas
      gl = webGLCanvas.getContext("webgl"); // get a webgl object from it
@@ -403,7 +409,7 @@ function setupWebGL() {
     catch(e) {
       console.log(e);
     } // end catch
- 
+
 } // end setupWebGL
 
 // read models in, load them into webgl buffers
@@ -580,6 +586,7 @@ function TinyWave() {
   
   this.update = function(timePassed) {
     this.height = this.defHeight * Math.sin(Date.now() / 10 % 360 * Math.PI / 180 + this.offset);
+
     if ((this.height >= -0.005 && this.height <= 0.005) && Math.random() > 0.2) {
       this.randomize();
     }
@@ -588,7 +595,7 @@ function TinyWave() {
     this.position[0] = (LAVA_MAX_X - LAVA_MIN_X) * Math.random() + LAVA_MIN_X;
     this.position[2] = (LAVA_MAX_Z - LAVA_MIN_Z) * Math.random() + LAVA_MIN_Z;
     
-    this.defHeight = 0.1 + Math.random() * 0.2;
+    this.defHeight = 0.3 + Math.random() * 0.3;
     this.width = 0.1 + Math.random() * 0.1;
     this.length = 0.1 + 0.1 * Math.random();
     this.rotation = Math.PI * 2 * Math.random();
@@ -603,7 +610,7 @@ function Wave() {
   
   this.initialize = function() {
     this.speed = (0.01 * Math.random() + 0.005 * Math.random() + 0.005) / 20.0;
-    this.height = 0.1 + Math.random() * 0.3;
+    this.height = 0.2 + Math.random() * 0.3;
     this.length = 0.1 + Math.random() * 0.2;
     this.width = Math.random() + this.length;
     this.defHeight = this.height;
@@ -775,6 +782,8 @@ function setupShaders() {
         
         varying vec3 vWorldPos; // interpolated world position of vertex
         varying float shortHeight;
+        varying float sinValue2;
+        varying vec3 normalVector;
         
         void main(void) {
             
@@ -822,9 +831,9 @@ function setupShaders() {
  
             //uv = a_uv;
             //float temp = sin(sinValue);
-              //uv.x += temp;
+            //uv.x += temp;
             //uv.y -= temp;
-            
+            sinValue2 = sinValue;
         }
     `;
     
@@ -891,19 +900,25 @@ function setupShaders() {
     `;
     
     var lavaFShaderCode = `
+        
         precision mediump float; // set float to medium precision
         // geometry properties
+        uniform vec3 uEyePosition;
         varying vec3 vWorldPos; // world xyz of fragment
         varying float shortHeight;
+        varying float sinValue2;
         uniform sampler2D u_texture;
+
         void main(void) {
-            
+            float height = shortHeight;
             // combine to output color
-            vec2 newUV = vec2(vWorldPos.x * 2.0, vWorldPos.z * 2.0);
+            vec2 newUV = vec2(vWorldPos.x, vWorldPos.z);
+            float divVal = 0.5 * height + 1.0;
+            //newUV.y += sin(sinValue2) / 10.0;
             vec4 texColor = texture2D(u_texture, newUV);
             
-            float height = shortHeight;
-            float val = height;
+            
+            float val = height;// - 0.35*fract(sin(dot(vec2(vWorldPos.x / 10.0, vWorldPos.z/ 10.0) ,vec2(sinValue2,78.233))) * 43758.5453) + 0.35;
             float r = val;
             float g = val;
             float b = val;
@@ -911,8 +926,26 @@ function setupShaders() {
               //val /= 10.0;
             //}
             vec3 heightColor = vec3(val, val, val);
+            vec4 colorOut = vec4((texColor.rgb - heightColor), 1.0);
+            vec4 fogColor = vec4(1.0, 1.0, 0.5, 1.0);
+            float dist = abs(vWorldPos.z - uEyePosition.z);
+            float fogAmount = 0.0;
+            // fog
+            if (dist > 0.9) {
+              dist -= 0.9;
+              fogAmount = dist;
+              fogAmount = max(0.0, fogAmount);
+              fogAmount = min(1.0, fogAmount);
+              colorOut = mix(colorOut, fogColor, fogAmount);
+            }
+            else if (height < -2.0) {
+              fogAmount = 0.0 - height;
+              fogAmount = max(0.0, fogAmount);
+              fogAmount = min(1.0, fogAmount);
+              colorOut = mix(colorOut, fogColor, fogAmount);
+            } 
             
-            gl_FragColor = vec4((texColor.rgb - heightColor), 1.0);
+            gl_FragColor = colorOut;
             
             
         }
@@ -1022,7 +1055,7 @@ function setupShaders() {
                 lavaMMatrixULoc = gl.getUniformLocation(shaderProgram2, "umMatrix"); // ptr to mmat
                 lavaPVMMatrixULoc = gl.getUniformLocation(shaderProgram2, "upvmMatrix"); // ptr to pvmmat
                 
-                
+                lavaEyePositionULoc = gl.getUniformLocation(shaderProgram2, "uEyePosition");
                 lavaSinValueUniform = gl.getUniformLocation(shaderProgram2, "sinValue");
                 
                 lavaTexToggleUniform = gl.getUniformLocation(shaderProgram2, "texToggle");
@@ -1191,10 +1224,13 @@ function renderModels() {
             gl.uniform1fv(waveRotationUniform,getWaveRotations());
             gl.uniform1fv(waveWidthUniform,getWaveWidths());
             gl.uniform1fv(waveLengthUniform,getWaveLengths());
-            
+            gl.uniform3fv(lavaEyePositionULoc,Eye);
             
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
+            
+            gl.activeTexture(gl.TEXTURE1);
+            gl.bindTexture(gl.TEXTURE_2D, lavaTexture2);
             
             // triangle buffer: activate and render
             gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,triangleBuffers[textureNumber]); // activate
@@ -1327,6 +1363,7 @@ function addTexture(resourceURL) {
   myImage.crossOrigin = "Anonymous";
   myImage.src = resourceURL;
   handleImageLoad(textures[whichSet], myImage);
+  return textures[textures.length - 1];
 }
 function loadResources() {
   var resources = getJSONFile(BASE_URL + "resources.json", "resources");
@@ -1404,7 +1441,9 @@ function loadLava() {
   lava.material = {"ambient": [0.1,0.1,0.1], "diffuse": [0.6,0.6,0.6], "specular": [0.3,0.3,0.3], "n": 11, "alpha": 0.9, "texture": "lava.png"};
   loadModel(lava);
   lavaPanels.push(lava);
-  addTexture(BASE_URL + "textures/" + "lava2.png");
+  addTexture(BASE_URL + "textures/" + "lava7.jpg");
+  
+  lavaTexture2 = addTexture(BASE_URL + "textures/" + "lava5.jpg");
 }
 
 function main() {
