@@ -435,7 +435,7 @@ function TinyWave() {
     this.width = this.defHeight + 0.1 * this.height;
     this.length = this.defLength + 0.1 * this.height;
     
-    if ((this.height >= -0.002 && this.height <= 0.002) && Math.random() > 0.1) {
+    if ((this.height >= -0.01 && this.height <= 0.01) && Math.random() > 0.1) {
       this.randomize();
     }
   }
@@ -703,7 +703,7 @@ function setupShaders() {
                 float y = waveHeight * waveHeight * sqrt(insideSqrt);
                 y = sign(waveHeight) * y;
                 heightChange += y; //max(heightChange, y);
-                  shortHeight += atan(6.0*y) - 2.0*y;
+                  shortHeight += atan(5.0*y) - 1.0*y;
                 
               }
             
@@ -801,7 +801,6 @@ function setupShaders() {
             float height = shortHeight;
             // combine to output color
             vec2 newUV = vec2(vWorldPos.x, vWorldPos.z);
-            float divVal = 0.5 * height + 1.0;
             //newUV.y += sin(sinValue2) / 10.0;
             vec4 texColor = texture2D(u_texture, newUV);
             
@@ -826,9 +825,9 @@ function setupShaders() {
               fogAmount = min(1.0, fogAmount);
               colorOut = mix(colorOut, fogColor, fogAmount);
             }
-            else if (height < -0.2) {
+            if (height < -0.1) {
               vec4 fogColor2 = vec4(1.0, 1.0, 1.0, 1.0);
-              fogAmount = -0.2 - height;
+              fogAmount = -0.1 - height;
               fogAmount = max(0.0, fogAmount);
               fogAmount = min(1.0, fogAmount);
               colorOut = mix(colorOut, fogColor2, fogAmount);
