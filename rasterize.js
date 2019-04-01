@@ -74,6 +74,7 @@ var waveLengthUniform;
 var waveWidthUniform;
 
 var lavaTexture2;
+var sinValue;
 
 /* interaction variables */
 var Eye = vec3.clone(defaultEye); // eye position in world space
@@ -185,57 +186,6 @@ function handleKeyDown(event) {
 
     switch (event.code) {
         
-        // model selection
-        case "Space": 
-            if (handleKeyDown.modelOn != null)
-                handleKeyDown.modelOn.on = false; // turn off highlighted model
-            handleKeyDown.modelOn = null; // no highlighted model
-            handleKeyDown.whichOn = -1; // nothing highlighted
-            break;
-        case "ArrowRight":
-            snakeHead.bufferHeadAction(3);
-            break;
-        case "ArrowLeft":
-            snakeHead.bufferHeadAction(1);
-            break;
-        case "ArrowUp":
-            snakeHead.bufferHeadAction(0);
-            break;        
-        case "ArrowDown":
-            snakeHead.bufferHeadAction(2);
-            break;
-        case "KeyH":
-            player2.bufferHeadAction(3);
-            break;
-        case "KeyF":
-            player2.bufferHeadAction(1);
-            break;
-        case "KeyT":
-            player2.bufferHeadAction(0);
-            break;        
-        case "KeyG":
-            player2.bufferHeadAction(2);
-            break;
-        case "KeyC":
-            dynamicCamera = !dynamicCamera;
-            if (!dynamicCamera) {
-              Center = vec3.clone(defaultCenter);
-              Eye = vec3.clone(defaultEye);
-            }
-            break;
-        case "KeyM":
-          muted = !muted;
-          music.muted = muted;
-          audio_eat.muted = muted;
-          audio_bump.muted = muted;
-          audio_clock.muted = muted;
-          audio_pup.muted = muted;
-          audio_pdown.muted = muted;
-          audio_explode.muted = muted;
-          if (muted == false) {
-            music.play();
-          }
-          break;
             
         // view change
         case "KeyA": // translate view left, rotate left with shift
@@ -266,121 +216,15 @@ function handleKeyDown(event) {
                 Center = vec3.add(Center,Center,vec3.scale(temp,lookAt,viewDelta));
             } // end if shift not pressed
             break;
-        case "KeyQ": // translate view up, rotate counterclockwise with shift
-            if (event.getModifierState("Shift"))
-                Up = vec3.normalize(Up,vec3.add(Up,Up,vec3.scale(temp,viewRight,-viewDelta)));
-            else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,Up,viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,viewDelta));
-            } // end if shift not pressed
+        case "KeyE": // translate view forward, rotate down with shift
+              Eye[1] -= viewDelta;
+              Center[1] -= viewDelta;
             break;
-        case "KeyE": // translate view down, rotate clockwise with shift
-            if (event.getModifierState("Shift"))
-                Up = vec3.normalize(Up,vec3.add(Up,Up,vec3.scale(temp,viewRight,viewDelta)));
-            else {
-                Eye = vec3.add(Eye,Eye,vec3.scale(temp,Up,-viewDelta));
-                Center = vec3.add(Center,Center,vec3.scale(temp,Up,-viewDelta));
-            } // end if shift not pressed
+        case "KeyQ": // translate view forward, rotate down with shift
+              Eye[1] += viewDelta;
+              Center[1] += viewDelta;
             break;
-        case "KeyB":
-            if (!event.getModifierState("Shift"))
-                texToggle = !texToggle;
-            break;
-        case "Escape": // reset view to default
-            is2Player = false;
-            setUpBoard();
-            break;
-        case "KeyR": // reset view to default
-            is2Player = true;
-            setUpBoard();
-            break;
-            
-        // model transformation
-        case "KeyK": // translate left, rotate left with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(Up,dirEnum.NEGATIVE);
-            else
-                translateModel(vec3.scale(temp,viewRight,viewDelta));
-            break;
-        case "Semicolon": // translate right, rotate right with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(Up,dirEnum.POSITIVE);
-            else
-                translateModel(vec3.scale(temp,viewRight,-viewDelta));
-            break;
-        case "KeyL": // translate backward, rotate up with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(viewRight,dirEnum.POSITIVE);
-            else
-                translateModel(vec3.scale(temp,lookAt,-viewDelta));
-            break;
-        case "KeyO": // translate forward, rotate down with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(viewRight,dirEnum.NEGATIVE);
-            else
-                translateModel(vec3.scale(temp,lookAt,viewDelta));
-            break;
-        case "KeyI": // translate up, rotate counterclockwise with shift 
-            if (event.getModifierState("Shift"))
-                rotateModel(lookAt,dirEnum.POSITIVE);
-            else
-                translateModel(vec3.scale(temp,Up,viewDelta));
-            break;
-        case "KeyP": // translate down, rotate clockwise with shift
-            if (event.getModifierState("Shift"))
-                rotateModel(lookAt,dirEnum.NEGATIVE);
-            else
-                translateModel(vec3.scale(temp,Up,-viewDelta));
-            break;
-        case "KeyB":
-        		Blinn_Phong = !Blinn_Phong;
-        	break;
-        case "KeyN":
-        		handleKeyDown.modelOn.material.n = (handleKeyDown.modelOn.material.n + 1)%20;
-        		console.log(handleKeyDown.modelOn.material.n);
-        	break;
-        case "Numpad1":
-        		vec3.add(handleKeyDown.modelOn.material.ambient, handleKeyDown.modelOn.material.ambient, vec3.fromValues(0.1,0.1,0.1));
-        		if(handleKeyDown.modelOn.material.ambient[0] > 1.0)
-        			handleKeyDown.modelOn.material.ambient[0] = 0;
-        		if(handleKeyDown.modelOn.material.ambient[1] > 1.0)
-        			handleKeyDown.modelOn.material.ambient[1] = 0;
-        		if(handleKeyDown.modelOn.material.ambient[2] > 1.0)
-        			handleKeyDown.modelOn.material.ambient[2] = 0;
-        		console.log(handleKeyDown.modelOn.material.ambient);
-        	break;
-        case "Numpad2":        		 
-        		vec3.add(handleKeyDown.modelOn.material.diffuse, handleKeyDown.modelOn.material.diffuse, vec3.fromValues(0.1,0.1,0.1));
-        		if(handleKeyDown.modelOn.material.diffuse[0] > 1.0)
-        			handleKeyDown.modelOn.material.diffuse[0] = 0;
-        		if(handleKeyDown.modelOn.material.diffuse[1] > 1.0)
-        			handleKeyDown.modelOn.material.diffuse[1] = 0;
-        		if(handleKeyDown.modelOn.material.diffuse[2] > 1.0)
-        			handleKeyDown.modelOn.material.diffuse[2] = 0;
-        		console.log(handleKeyDown.modelOn.material.diffuse);
-        	break;
-         case "Numpad3":        		 
-        		vec3.add(handleKeyDown.modelOn.material.specular, handleKeyDown.modelOn.material.specular, vec3.fromValues(0.1,0.1,0.1));
-        		if(handleKeyDown.modelOn.material.specular[0] > 1.0)
-        			handleKeyDown.modelOn.material.specular[0] = 0;
-        		if(handleKeyDown.modelOn.material.specular[1] > 1.0)
-        			handleKeyDown.modelOn.material.specular[1] = 0;
-        		if(handleKeyDown.modelOn.material.specular[2] > 1.0)
-        			handleKeyDown.modelOn.material.specular[2] = 0;
-        		console.log(handleKeyDown.modelOn.material.specular);
-        	break;
-        case "Backspace": // reset model transforms to default
-            for (var whichTriSet=0; whichTriSet<numTriangleSets; whichTriSet++) {
-                vec3.set(modelInstances[whichTriSet].translation,0,0,0);
-                vec3.set(modelInstances[whichTriSet].xAxis,1,0,0);
-                vec3.set(modelInstances[whichTriSet].yAxis,0,1,0);
-            } // end for all triangle sets
-            for (var whichEllipsoid=0; whichEllipsoid<numEllipsoids; whichEllipsoid++) {
-                vec3.set(inputEllipsoids[whichEllipsoid].translation,0,0,0);
-                vec3.set(inputEllipsoids[whichTriSet].xAxis,1,0,0);
-                vec3.set(inputEllipsoids[whichTriSet].yAxis,0,1,0);
-            } // end for all ellipsoids
-            break;
+          
     } // end switch
 } // end handleKeyDown
 
@@ -565,28 +409,67 @@ function Ship(x, y, z) {
   this.model.center = vec3.fromValues(0, 0, 0);
   
   this.update = function(time) {
-    var elapsedSeconds = time / 1000;
-    var z = elapsedSeconds * this.speed;
-    vec3.add(this.position, this.position, vec3.fromValues(0, 0, z));
+    //var elapsedSeconds = time / 1000;
+    //var z = elapsedSeconds * this.speed;
+    //vec3.add(this.position, this.position, vec3.fromValues(0, 0, z));
+    this.position[1] = getHeightOfLava(this.position);
   }
   
 }
 
-
-
 function TinyWave() {
-  this.position = vec3.create();
+  this.position = vec3.fromValues(0.5, 0.0, -0.5);
 
   this.length;
   this.width;
   this.rotation;
   this.defHeight;
+  this.defWidth;
+  this.defLength;
   this.height;
-  this.offset = Math.floor(Math.random() * 360);
+  this.offset = Math.floor(Math.random() * 360) * Math.PI * 2.0;
   
   this.update = function(timePassed) {
-    this.height = this.defHeight * Math.sin(Date.now() / 10 % 360 * Math.PI / 180 + this.offset);
+    var sinV = Math.sin((sinValue + this.offset) / 30.0);
+    this.height = this.defHeight * sinV;
+    this.width = this.defHeight + 0.1 * this.height;
+    this.length = this.defLength + 0.1 * this.height;
+    
+    if ((this.height >= -0.002 && this.height <= 0.002) && Math.random() > 0.1) {
+      this.randomize();
+    }
+  }
+  this.randomize = function() {
+    this.position[0] = (LAVA_MAX_X - LAVA_MIN_X) * Math.random() + LAVA_MIN_X;
+    this.position[2] = (LAVA_MAX_Z - LAVA_MIN_Z) * Math.random() + LAVA_MIN_Z;
+    
+    this.defHeight = 0.2 + Math.random() * 0.1;
+    this.width = 0.1 + Math.random() * 0.1;
+    this.defWidth = this.width;
+    this.length = 0.1 + 0.1 * Math.random();
+    this.defLength = this.length;
+    this.rotation = Math.PI * 2 * Math.random();
+  }
+  this.randomize();
+}
 
+function Bubble() {
+  this.position = vec3.fromValues(0.5, 0.0, -0.5);
+
+  this.length;
+  this.width;
+  this.rotation;
+  this.defHeight;
+  this.defWidth;
+  this.defLength;
+  this.height;
+  this.offset = Math.random() * Math.PI * 2.0;
+  
+  this.update = function(timePassed) {
+    this.height = this.defHeight * Math.sin((sinValue + this.offset));
+    this.width = Math.abs(this.height) / 2;
+    this.length = Math.abs(this.height) / 2;
+    
     if ((this.height >= -0.005 && this.height <= 0.005) && Math.random() > 0.2) {
       this.randomize();
     }
@@ -595,9 +478,11 @@ function TinyWave() {
     this.position[0] = (LAVA_MAX_X - LAVA_MIN_X) * Math.random() + LAVA_MIN_X;
     this.position[2] = (LAVA_MAX_Z - LAVA_MIN_Z) * Math.random() + LAVA_MIN_Z;
     
-    this.defHeight = 0.3 + Math.random() * 0.3;
+    this.defHeight = 0.1 + Math.random() * 0.1;
     this.width = 0.1 + Math.random() * 0.1;
+    this.defWidth = this.width;
     this.length = 0.1 + 0.1 * Math.random();
+    this.defLength = this.length;
     this.rotation = Math.PI * 2 * Math.random();
   }
   this.randomize();
@@ -609,10 +494,10 @@ function Wave() {
   this.velocity = vec3.create();
   
   this.initialize = function() {
-    this.speed = (0.01 * Math.random() + 0.005 * Math.random() + 0.005) / 20.0;
-    this.height = 0.2 + Math.random() * 0.3;
-    this.length = 0.1 + Math.random() * 0.2;
-    this.width = Math.random() + this.length;
+    this.speed = (0.005 * Math.random() + 0.005) / 30.0;
+    this.height = 0.3 + Math.random() * 0.1;
+    this.length = 0.1 + Math.random() * 0.1;
+    this.width = Math.random() / 2.0 + this.length;
     this.defHeight = this.height;
     this.offset = Math.floor(Math.random() * 360);
     
@@ -695,13 +580,16 @@ function setupGame() {
   modelInstances = [];
   lavaPanels = [];
   lavaWaves = [];
-  for (var i = 0; i < NUM_WAVES - 20; i++) {
+  for (var i = 0; i < 487; i++) {
     lavaWaves.push(new TinyWave());
   }
-  
-  for (var i = 0; i < 20; i++) {
+  for (var i = 0; i < 13; i++) {
     lavaWaves.push(new Wave());
   }
+  
+  //for (var i = 0; i < 20; i++) {
+    //lavaWaves.push(new Wave());
+  //}
   
   player = new Ship(0.5, 0.5, 0.0);
   loadLava();
@@ -822,7 +710,7 @@ function setupShaders() {
             }
             shortHeight -= 0.5;
             
-              idleChange = 0.05 * sin(sinValue + vWorldPos.x + vWorldPos.z);
+              //idleChange = 0.005 * sin(sinValue + vWorldPos.x + vWorldPos.z);
             
             vec4 newPos = vec4(aVertexPosition.x, vWorldPos.y + heightChange + idleChange, aVertexPosition.z, 1.0);
             vWorldPos.y += heightChange + idleChange;
@@ -938,11 +826,12 @@ function setupShaders() {
               fogAmount = min(1.0, fogAmount);
               colorOut = mix(colorOut, fogColor, fogAmount);
             }
-            else if (height < -2.0) {
-              fogAmount = 0.0 - height;
+            else if (height < -0.2) {
+              vec4 fogColor2 = vec4(1.0, 1.0, 1.0, 1.0);
+              fogAmount = -0.2 - height;
               fogAmount = max(0.0, fogAmount);
               fogAmount = min(1.0, fogAmount);
-              colorOut = mix(colorOut, fogColor, fogAmount);
+              colorOut = mix(colorOut, fogColor2, fogAmount);
             } 
             
             gl_FragColor = colorOut;
@@ -1199,6 +1088,7 @@ function renderModels() {
       
       function renderLava() {
         gl.useProgram(lavaShaderProgram); // activate shader program (frag and vert)        
+        sinValue = Date.now() / 60 % 360 * (Math.PI * 2.0);
         // render each triangle set
         var currSet; // the tri set and its material properties
         for (var whichTriSet=0; whichTriSet<lavaPanels.length; whichTriSet++) {
@@ -1217,7 +1107,8 @@ function renderModels() {
             
             
             gl.uniform1f(lavaAlphaUniform, currSet.material.alpha);
-            gl.uniform1f(lavaSinValueUniform, Date.now() / 10 % 360 * Math.PI / 180);
+            
+            gl.uniform1f(lavaSinValueUniform, sinValue);
             
             
             gl.uniform3fv(wavePosUniform,getWavePositionArray());
@@ -1444,6 +1335,39 @@ function loadLava() {
   addTexture(BASE_URL + "textures/" + "lava7.jpg");
   
   lavaTexture2 = addTexture(BASE_URL + "textures/" + "lava5.jpg");
+}
+
+function getHeightOfLava(pos) {
+  var idleChange = 0.0;
+  var heightChange = 0.0;
+  
+  for (var i = 0; i < NUM_WAVES; i++) {
+    var wave = lavaWaves[i];
+    var waveHeight = wave.height;
+    var dx = pos[0] - wave.position[0];
+    var dz = pos[2] - wave.position[2];
+    
+    var cosT = Math.cos(wave.rotation);
+    var sinT = Math.sin(wave.rotation);
+    
+    var x = cosT * dx + sinT * dz;
+    var z = -1.0 * sinT * dx + cosT * dz;
+    
+    
+    var insideSqrt = 1.0 - x * x / (wave.width * wave.width) - z * z / (wave.length * wave.length);
+    
+    if (insideSqrt > 0.0) {
+      var y = wave.height * wave.height * Math.sqrt(insideSqrt);
+      y = Math.sign(wave.height) * y;
+      heightChange += y;
+    }
+    
+  }
+  
+  //idleChange = 0.005 * Math.sin(sinValue + pos[0] + pos[2]);
+  
+  return heightChange + idleChange;
+  
 }
 
 function main() {
