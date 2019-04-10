@@ -73,6 +73,7 @@ var waveRotationUniform;
 var waveLengthUniform;
 var waveWidthUniform;
 
+var lavaTexture1;
 var lavaTexture2;
 var sinValue;
 
@@ -796,14 +797,14 @@ function setupShaders() {
         varying float shortHeight;
         varying float sinValue2;
         uniform sampler2D u_texture;
-
+        uniform sampler2D u_texture2;
         void main(void) {
             float height = shortHeight;
             // combine to output color
             vec2 newUV = vec2(vWorldPos.x, vWorldPos.z);
             //newUV.y += sin(sinValue2) / 10.0;
             vec4 texColor = texture2D(u_texture, newUV);
-            
+            vec4 texColor2 = texture2D(u_texture2, newUV);
             
             float val = height;// - 0.35*fract(sin(dot(vec2(vWorldPos.x / 10.0, vWorldPos.z/ 10.0) ,vec2(sinValue2,78.233))) * 43758.5453) + 0.35;
             float r = val;
@@ -813,6 +814,9 @@ function setupShaders() {
               //val /= 10.0;
             //}
             vec3 heightColor = vec3(val, val, val);
+            float mixAmount = max(0.0, vWorldPos.y) * 2.0;
+            texColor = mix(texColor, texColor2, mixAmount);
+            
             vec4 colorOut = vec4((texColor.rgb - heightColor), 1.0);
             vec4 fogColor = vec4(1.0, 1.0, 0.5, 1.0);
             float dist = abs(vWorldPos.z - uEyePosition.z);
@@ -955,6 +959,11 @@ function setupShaders() {
                 waveLengthUniform = gl.getUniformLocation(shaderProgram2, "waveLen");
                 waveWidthUniform = gl.getUniformLocation(shaderProgram2, "waveWid");
                 
+                var lavaTex1Uniform = gl.getUniformLocation(shaderProgram2, "u_texture");
+                var lavaTex2Uniform = gl.getUniformLocation(shaderProgram2, "u_texture2");
+                
+                gl.uniform1i(lavaTex1Uniform, 0);  // texture unit 0
+                gl.uniform1i(lavaTex2Uniform, 1);  // texture unit 1
                 
                 lavaShaderProgram = shaderProgram2;
             } // end if no shader program link errors
@@ -1117,7 +1126,7 @@ function renderModels() {
             gl.uniform3fv(lavaEyePositionULoc,Eye);
             
             gl.activeTexture(gl.TEXTURE0);
-            gl.bindTexture(gl.TEXTURE_2D, textures[thisInstance.realTextureNumber]);
+            gl.bindTexture(gl.TEXTURE_2D, lavaTexture1);
             
             gl.activeTexture(gl.TEXTURE1);
             gl.bindTexture(gl.TEXTURE_2D, lavaTexture2);
@@ -1331,9 +1340,13 @@ function loadLava() {
   lava.material = {"ambient": [0.1,0.1,0.1], "diffuse": [0.6,0.6,0.6], "specular": [0.3,0.3,0.3], "n": 11, "alpha": 0.9, "texture": "lava.png"};
   loadModel(lava);
   lavaPanels.push(lava);
-  addTexture(BASE_URL + "textures/" + "lava7.jpg");
   
-  lavaTexture2 = addTexture(BASE_URL + "textures/" + "lava5.jpg");
+  if (lavaTexture1 == undefined) {
+    lavaTexture1 = addTexture(BASE_URL + "textures/" + "lava7.jpg");
+  }
+  if (lavaTexture2 == undefined) {
+    lavaTexture2 = addTexture(BASE_URL + "textures/" + "lava3.jpg");
+  }
 }
 
 function getHeightOfLava(pos) {
