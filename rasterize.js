@@ -5,7 +5,7 @@ var INPUT_TRIANGLES_URL = "http://127.0.0.1/CGA_Proj_3/models.json"; // triangle
 var BASE_URL = "http://127.0.0.1/CGA_Proj_3/";
 var defaultEye = vec3.fromValues(0.5,0.5,0.5); // default eye position in world space
 
-const NUM_WAVES = 500;
+const NUM_WAVES = 300;
 const LAVA_WIDTH = 8.0;
 const LAVA_DEPTH = 3.0;
 const LAVA_MIN_X = defaultEye[0] - 0.5 * LAVA_WIDTH;
@@ -13,6 +13,19 @@ const LAVA_MAX_X = LAVA_MIN_X + LAVA_WIDTH;
 const LAVA_MIN_Z = defaultEye[2] - 0.5 * LAVA_DEPTH - 1.0;
 const LAVA_MAX_Z = LAVA_MIN_Z + LAVA_DEPTH;
 
+const VIEW_MIN_DEPTH = defaultEye[0];
+const VIEW_MAX_DEPTH = LAVA_DEPTH;
+const VIEW_WIDTH_MIN_DELTA = 1.0;
+const VIEW_WIDTH_MAX_DELTA = 4.0;
+
+function pickRandomPointInView(position) {
+  var z = LAVA_MAX_Z - (Math.random() * LAVA_DEPTH);
+  var slope = (VIEW_WIDTH_MIN_DELTA - VIEW_WIDTH_MAX_DELTA) / LAVA_DEPTH;
+  var minX = (defaultEye[0] - VIEW_MIN_DEPTH) - slope * z;
+  var range = Math.abs(defaultEye[0] - minX) * 2;
+  var x = minX + (Math.random() * range);
+  vec3.set(position, x, 0.0, z);
+}
 //INPUT_TRIANGLES_URL = "https://taredding.github.io/Snake3D/models.json"; // triangles file loc
 //BASE_URL = "https://taredding.github.io/Snake3D/";
 
@@ -441,9 +454,9 @@ function TinyWave() {
     }
   }
   this.randomize = function() {
-    this.position[0] = (LAVA_MAX_X - LAVA_MIN_X) * Math.random() + LAVA_MIN_X;
-    this.position[2] = (LAVA_MAX_Z - LAVA_MIN_Z) * Math.random() + LAVA_MIN_Z;
-    
+    //this.position[0] = (LAVA_MAX_X - LAVA_MIN_X) * Math.random() + LAVA_MIN_X;
+    //this.position[2] = (LAVA_MAX_Z - LAVA_MIN_Z) * Math.random() + LAVA_MIN_Z;
+    pickRandomPointInView(this.position);
     this.defHeight = 0.2 + Math.random() * 0.1;
     this.width = 0.1 + Math.random() * 0.1;
     this.defWidth = this.width;
@@ -581,7 +594,7 @@ function setupGame() {
   modelInstances = [];
   lavaPanels = [];
   lavaWaves = [];
-  for (var i = 0; i < 487; i++) {
+  for (var i = 0; i < NUM_WAVES - 13; i++) {
     lavaWaves.push(new TinyWave());
   }
   for (var i = 0; i < 13; i++) {
@@ -673,7 +686,7 @@ function setupShaders() {
         varying float shortHeight;
         varying float sinValue2;
         varying vec3 normalVector;
-        
+
         void main(void) {
             
 
@@ -802,7 +815,7 @@ function setupShaders() {
             float height = shortHeight;
             // combine to output color
             vec2 newUV = vec2(vWorldPos.x, vWorldPos.z);
-            //newUV.y += sin(sinValue2) / 10.0;
+            //newUV.x += ;
             vec4 texColor = texture2D(u_texture, newUV);
             vec4 texColor2 = texture2D(u_texture2, newUV);
             
@@ -1183,10 +1196,11 @@ var frameNum = 0;
 var slowDown = false;
 function updateGame(elapsedTime) {
   frameNum++;
-  player.update(elapsedTime);
+  
   for (var i = 0; i < lavaWaves.length; i++) {
     lavaWaves[i].update(elapsedTime);
   }
+  player.update(elapsedTime);
 }
  
 function loadModelFromObj(url, desc) {
