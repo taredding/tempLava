@@ -368,6 +368,9 @@ function getFile(url,descr) {
     }
 } // end get input json file
 
+
+
+
 function getModelByName(name) {
   for (var i = 0; i < inputTriangles.length; i++) {
     if (name === inputTriangles[i].name) {
@@ -472,7 +475,7 @@ function setupShaders() {
               float x = cosT * dx + sinT * dz;
               float z = -1.0 * sinT * dx + cosT * dz;
               float insideSqrt = 1.0 - x * x / (waveWid[i] * waveWid[i]) - z * z / (waveLen[i] * waveLen[i]);
-              if (insideSqrt > 0.0) {
+              if (insideSqrt >= 0.0) {
                 float y = waveHeight * waveHeight * sqrt(insideSqrt);
                 y = sign(waveHeight) * y;
                 heightChange += y; //max(heightChange, y);
@@ -485,8 +488,8 @@ function setupShaders() {
             
               //idleChange = 0.005 * sin(sinValue + vWorldPos.x + vWorldPos.z);
             
-            vec4 newPos = vec4(aVertexPosition.x, vWorldPos.y + heightChange + idleChange, aVertexPosition.z, 1.0);
-            vWorldPos.y += heightChange + idleChange;
+            vec4 newPos = vec4(aVertexPosition.x, heightChange, aVertexPosition.z, 1.0);
+            vWorldPos.y = heightChange;
             
             gl_Position = upvmMatrix * newPos;
  
@@ -929,8 +932,9 @@ function renderModels() {
       mat4.multiply(pvMatrix,pvMatrix,pMatrix); // projection
       mat4.multiply(pvMatrix,pvMatrix,vMatrix); // projection * view
       
-      renderTriangles();
       renderLava();
+      renderTriangles();
+      
       
       
       renderUpdateTime = Date.now() - renderUpdateTime;
