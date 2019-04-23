@@ -1,17 +1,22 @@
 [
   {
-    "name": "snakehead",
-    "material": {"ambient": [0.6,0.6,0.6], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "snakeHeadUV.png"},
-    "model": "snakehead.obj"
-  },
-  {
     "name": "ship",
-    "material": {"ambient": [0.9,0.9,0.9], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "ship3.png"},
+    "material": {"ambient": [0.9,0.9,0.9], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 11, "alpha": 1.0, "texture": "shipFilterRGB2.png"},
     "model": "ship2.obj"
   },
   {
     "name": "panel",
-    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [0.6,0.6,0.6], "specular": [0.6,0.6,0.6], "n": 1, "alpha": 1.0, "texture": "lava3.jpg"},
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [1.0,1.0,1.0], "specular": [1.0,1.0,1.0], "n": 1, "alpha": 1.0, "texture": "lava3.jpg"},
     "model": "panel.obj"
+  },
+  {
+    "name": "mothership",
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [1.0,1.0,1.0], "specular": [1.0,1.0,1.0], "n": 1, "alpha": 1.0, "texture": "mothershipRGB.png"},
+    "model": "mothership_turtle.obj"
+  },
+  {
+    "name": "beam",
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [1.0,1.0,1.0], "specular": [1.0,1.0,1.0], "n": 1, "alpha": 1.0, "texture": "mothershipRGB.png"},
+    "model": "beam2.obj"
   }
 ]
