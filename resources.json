@@ -11,8 +11,13 @@
   },
   {
     "name": "mothership",
-    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [1.0,1.0,1.0], "specular": [1.0,1.0,1.0], "n": 1, "alpha": 1.0, "texture": "mothershipRGB.png"},
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [1.0,1.0,1.0], "specular": [1.0,1.0,1.0], "n": 11, "alpha": 1.0, "texture": "mothershipRGB.png"},
     "model": "mothership_turtle.obj"
+  },
+  {
+    "name": "thruster",
+    "material": {"ambient": [1.0,1.0,1.0], "diffuse": [1.0,1.0,1.0], "specular": [1.0,1.0,1.0], "n": 1, "alpha": 1.0, "texture": "thrust.png"},
+    "model": "thrust.obj"
   },
   {
     "name": "beam",
